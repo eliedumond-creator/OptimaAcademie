@@ -1,0 +1,2888 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formation OPTIMA - Portail Manager S&OP</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* --- Styles from Style.html --- */
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(10px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    .animate-fade-in { 
+      animation: fadeIn 0.4s ease-out forwards; 
+    }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .btn-primary { 
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 0.65rem 1.5rem; 
+      background-color: #1e3a8a; 
+      color: white; 
+      font-weight: 700; 
+      font-size: 0.875rem; 
+      border-radius: 0.5rem; 
+      transition: all 0.2s; 
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
+      cursor: pointer; 
+    }
+    
+    .btn-primary:hover:not(:disabled) { 
+      background-color: #172554; 
+      transform: translateY(-1px); 
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* --- Styles from Index.html --- */
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .accordion-content {
+      transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin 0.3s ease-in-out;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .accordion-content.open {
+      max-height: 2000px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans overflow-hidden">
+  
+  <div id="root"></div>
+
+  <!-- VARIABLES GLOBALES & CONTEXTE -->
+  <script type="text/babel">
+    window.ContentContext = React.createContext();
+    window.JOB_CODES = [];
+    window.BU_DATA = [];
+  </script>
+
+  <!-- COMPOSANTS REACT MODULAIRES INTÉGRÉS -->
+  <script type="text/babel">
+    const { useState, useEffect, useContext, useMemo, useRef } = React;
+
+    // --- UTILS & SHARED COMPONENTS ---
+    
+    // Composant Texte classique
+    function T({ id, multiline = false }) {
+      const { content, setContent, isEditMode } = useContext(window.ContentContext);
+      const text = content[id] !== undefined ? content[id] : `[${id}]`;
+      const inputRef = useRef(null);
+      
+      if (!isEditMode) {
+        return <span dangerouslySetInnerHTML={{__html: text.replace(/\n/g, '<br/>')}} />;
+      }
+
+      const insertHTML = (tagOpen, tagClose) => {
+        const el = inputRef.current;
+        if (!el) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const val = el.value;
+        const selectedText = val.substring(start, end);
+        const replacement = tagOpen + (selectedText || "Texte") + tagClose;
+        const newVal = val.substring(0, start) + replacement + val.substring(end);
+        
+        setContent({...content, [id]: newVal});
+        
+        setTimeout(() => {
+          el.focus();
+          el.setSelectionRange(start + tagOpen.length, start + tagOpen.length + (selectedText || "Texte").length);
+        }, 0);
+      };
+      
+      return (
+        <div className="w-full flex flex-col my-1 text-slate-800 font-sans">
+          <div className="flex flex-wrap gap-1 bg-amber-100 p-1 border-x-2 border-t-2 border-amber-400 rounded-t-lg items-center text-[10px] sm:text-xs">
+            <button type="button" onClick={() => insertHTML('<strong>', '</strong>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded font-bold border border-amber-300 shadow-sm" title="Gras">B</button>
+            <button type="button" onClick={() => insertHTML('<em>', '</em>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded italic border border-amber-300 shadow-sm" title="Italique">I</button>
+            <button type="button" onClick={() => insertHTML('<u>', '</u>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded underline border border-amber-300 shadow-sm" title="Sous-ligner">U</button>
+            <span className="text-amber-300 mx-1">|</span>
+            <button type="button" onClick={() => insertHTML('<span class="text-blue-600">', '</span>')} className="px-1.5 py-0.5 bg-blue-100 text-blue-600 font-bold hover:bg-blue-200 rounded border border-blue-300 shadow-sm" title="Bleu">Bleu</button>
+            <button type="button" onClick={() => insertHTML('<span class="text-red-600">', '</span>')} className="px-1.5 py-0.5 bg-red-100 text-red-600 font-bold hover:bg-red-200 rounded border border-red-300 shadow-sm" title="Rouge">Rouge</button>
+            <button type="button" onClick={() => insertHTML('<span class="text-emerald-600">', '</span>')} className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 font-bold hover:bg-emerald-200 rounded border border-emerald-300 shadow-sm" title="Vert">Vert</button>
+            <span className="text-amber-300 mx-1">|</span>
+            {multiline && (
+              <>
+                <button type="button" onClick={() => insertHTML('<ul class="list-disc pl-5 my-2"><li>', '</li><li>Élément 2</li></ul>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm flex items-center gap-1" title="Liste à puces">
+                  <i className="fas fa-list-ul text-[9px]"></i> Liste
+                </button>
+                <button type="button" onClick={() => insertHTML('<li class="mt-1">', '</li>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm" title="Ajouter une puce">+ Puce</button>
+                <span className="text-amber-300 mx-1">|</span>
+              </>
+            )}
+            <button type="button" onClick={() => insertHTML('<div class="pl-4 border-l-2 border-slate-300 my-2">', '</div>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm flex items-center gap-1" title="Indentation">
+              <i className="fas fa-indent text-[9px]"></i> Indenter
+            </button>
+          </div>
+
+          {multiline ? (
+            <textarea 
+              ref={inputRef}
+              className="w-full min-h-[100px] p-2 border-x-2 border-b-2 border-amber-400 bg-amber-50 text-slate-900 rounded-b-lg outline-none text-sm font-normal normal-case leading-relaxed shadow-inner focus:ring-2 ring-amber-200"
+              value={text}
+              onChange={(e) => setContent({...content, [id]: e.target.value})}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <input 
+              ref={inputRef}
+              type="text" 
+              className="w-full p-1.5 border-x-2 border-b-2 border-amber-400 bg-amber-50 text-slate-900 rounded-b-lg outline-none text-sm font-normal normal-case shadow-inner focus:ring-2 ring-amber-200"
+              value={text}
+              onChange={(e) => setContent({...content, [id]: e.target.value})}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // Composant Texte Optionnel Dynamique
+    function OptionalT({ id }) {
+      const { content, setContent, isEditMode } = useContext(window.ContentContext);
+      const text = content[id] || '';
+
+      if (!isEditMode && !text) return null;
+
+      if (isEditMode && !text) {
+        return (
+          <div className="border-2 border-dashed border-amber-300 p-3 text-center text-amber-600 rounded-xl cursor-pointer hover:bg-amber-50 mt-4 mb-4 transition-colors text-sm"
+               onClick={() => setContent({...content, [id]: 'Nouveau texte optionnel...'})}>
+            <i className="fas fa-plus-circle mr-2"></i> Ajouter un bloc de texte supplémentaire ici
+          </div>
+        );
+      }
+
+      return (
+          <div className={`relative group mt-4 mb-4 ${isEditMode ? 'bg-amber-50/50 p-4 rounded-xl border border-amber-200' : ''}`}>
+            {isEditMode && <div className="absolute -top-2.5 -left-2 bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm z-10 border border-amber-300">Optionnel</div>}
+            
+            <div className="text-sm text-slate-600 leading-relaxed">
+              <T id={id} multiline={true} />
+            </div>
+            
+            {isEditMode && (
+               <button onClick={() => setContent({...content, [id]: ''})} title="Supprimer ce bloc" className="absolute -top-2.5 -right-2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-md border border-red-200 transition-opacity z-10">
+                 <i className="fas fa-trash text-xs"></i>
+               </button>
+            )}
+          </div>
+      );
+    }
+
+    // Composant Accordéon (Pour Partie 5 et autres)
+    function Accordion({ titleId, icon, children, defaultOpen = false }) {
+      const [isOpen, setIsOpen] = useState(defaultOpen);
+      
+      return (
+        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <button 
+            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <div className="flex items-center text-slate-800 font-bold text-lg">
+              <i className={`fas ${icon} text-indigo-500 mr-3 w-6 text-center`}></i>
+              <T id={titleId} />
+            </div>
+            <i className={`fas fa-chevron-down text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
+          </button>
+          <div className={`accordion-content px-6 bg-white ${isOpen ? 'open pb-6' : ''}`}>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function NavItem({ icon, labelId, isActive, onClick, locked }) {
+      return (
+        <button 
+          onClick={locked ? undefined : onClick}
+          className={`w-full flex items-center px-6 py-3.5 text-xs font-bold transition-all relative
+            ${isActive ? 'bg-[#132c4a] text-white border-l-4 border-blue-500 shadow-inner' : 'text-slate-300 hover:bg-[#132c4a]/50 hover:text-white border-l-4 border-transparent'}
+            ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <i className={`fas ${icon} w-6 text-center mr-3 text-sm ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`}></i>
+          <span className="flex-1 text-left whitespace-normal leading-tight"><T id={labelId} /></span>
+          {locked ? <i className="fas fa-lock text-[10px] text-slate-500 ml-2"></i> : isActive && <i className="fas fa-chevron-right text-[10px] text-blue-500 opacity-50 ml-2"></i>}
+        </button>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 1 : CYCLE S&OP
+    // ==========================================
+    function Part1_CycleSOP({ onNext }) {
+      const { gainXp, isDevMode, completedTasks } = useContext(window.ContentContext) || {};
+      const isPart1Done = !!completedTasks['puzzle_p1'];
+
+      const correctPuzzle = [
+        { id: 4, textId: "p1_step4", order: 4, resp: 'mgr', inst: 'proj' },
+        { id: 1, textId: "p1_step1", order: 1, resp: 'sop_mgr', inst: 'none' },
+        { id: 5, textId: "p1_step5", order: 5, resp: 'copil', inst: 'rituel_sop' },
+        { id: 2, textId: "p1_step2", order: 2, resp: 'pm', inst: 'avant_demande' },
+        { id: 3, textId: "p1_step3", order: 3, resp: 'mgr', inst: 'none' }
+      ];
+
+      const [puzzleItems, setPuzzleItems] = useState([
+        { id: 4, textId: "p1_step4", order: null, resp: '', inst: '' },
+        { id: 1, textId: "p1_step1", order: null, resp: '', inst: '' },
+        { id: 5, textId: "p1_step5", order: null, resp: '', inst: '' },
+        { id: 2, textId: "p1_step2", order: null, resp: '', inst: '' },
+        { id: 3, textId: "p1_step3", order: null, resp: '', inst: '' }
+      ]);
+      const [currentOrder, setCurrentOrder] = useState(1);
+      const [isSuccess, setIsSuccess] = useState(false);
+      const [showError, setShowError] = useState(false);
+
+      useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
+
+      useEffect(() => {
+        if (completedTasks && completedTasks['puzzle_p1']) {
+           setPuzzleItems(correctPuzzle);
+           setIsSuccess(true);
+           setShowError(false);
+        } else if (isDevMode) {
+           setPuzzleItems(correctPuzzle);
+           setCurrentOrder(6);
+           setIsSuccess(false);
+           setShowError(false);
+        } else {
+           setPuzzleItems([
+             { id: 4, textId: "p1_step4", order: null, resp: '', inst: '' },
+             { id: 1, textId: "p1_step1", order: null, resp: '', inst: '' },
+             { id: 5, textId: "p1_step5", order: null, resp: '', inst: '' },
+             { id: 2, textId: "p1_step2", order: null, resp: '', inst: '' },
+             { id: 3, textId: "p1_step3", order: null, resp: '', inst: '' }
+           ]);
+           setCurrentOrder(1);
+           setIsSuccess(false);
+           setShowError(false);
+        }
+      }, [completedTasks, isDevMode]);
+
+      const handleOrderClick = (item) => {
+        if (item.order !== null) {
+          const newItems = puzzleItems.map(p => ({ ...p, order: null }));
+          setPuzzleItems(newItems);
+          setCurrentOrder(1);
+          setShowError(false);
+        } else {
+          const newItems = puzzleItems.map(p => p.id === item.id ? { ...p, order: currentOrder } : p);
+          setPuzzleItems(newItems);
+          setCurrentOrder(currentOrder + 1);
+          setShowError(false);
+        }
+      };
+
+      const checkPuzzle = () => {
+        const allFilled = puzzleItems.every(p => p.order !== null && p.resp !== '' && p.inst !== '');
+        if (!allFilled) {
+          setShowError("Veuillez remplir toutes les informations (Ordre, Responsable, Instance).");
+          return;
+        }
+
+        const isOrderCorrect = puzzleItems.every(p => p.order === p.id);
+        const isRespCorrect = puzzleItems.every(p => {
+          if (p.id === 1) return p.resp === 'sop_mgr';
+          if (p.id === 2) return p.resp === 'pm';     
+          if (p.id === 3) return p.resp === 'mgr';    
+          if (p.id === 4) return p.resp === 'mgr';    
+          if (p.id === 5) return p.resp === 'copil';  
+          return false;
+        });
+
+        const isInstCorrect = puzzleItems.every(p => {
+          if (p.id === 1) return p.inst === 'none';         
+          if (p.id === 2) return p.inst === 'avant_demande';
+          if (p.id === 3) return p.inst === 'none';         
+          if (p.id === 4) return p.inst === 'proj';         
+          if (p.id === 5) return p.inst === 'rituel_sop';   
+          return false;
+        });
+
+        if (isOrderCorrect && isRespCorrect && isInstCorrect) {
+          setIsSuccess(true);
+          setShowError(false);
+          if (gainXp) gainXp('puzzle_p1'); 
+        } else {
+          setIsSuccess(false);
+          setShowError("Il y a des erreurs dans l'ordre chronologique, les responsables ou les instances. Vérifiez vos choix !");
+        }
+      };
+
+      return (
+        <div className="space-y-8 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-sync-alt text-blue-600 mr-3"></i> <T id="p1_title" />
+            </h2>
+            <p className="text-slate-600"><T id="p1_desc" multiline={true} /></p>
+            <OptionalT id="p1_opt_intro" />
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center pl-2">
+              <i className="fas fa-balance-scale text-indigo-600 mr-3"></i> <T id="p1_s5_main_title" />
+            </h3>
+            <div className="pl-2">
+              <p className="text-slate-700 mb-6 font-medium text-[15px] leading-relaxed"><T id="p1_s5_intro" multiline={true} /></p>
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-md bg-slate-100 flex items-center justify-center">
+                <iframe 
+                  src="https://docs.google.com/presentation/d/11OS-TNCQXm-rayUJDfuBODY3gjuCRuUQdYOFdfftVGo/embed?start=false&loop=false&delayms=3000&slide=id.g3e377d0dfa4_0_1805" 
+                  frameBorder="0" 
+                  width="100%" 
+                  height="100%" 
+                  allowFullScreen={true}
+                  className="absolute top-0 left-0 w-full h-full">
+                </iframe>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center pl-2">
+              <i className="fas fa-project-diagram text-blue-600 mr-3"></i> <T id="p1_s14_main_title" />
+            </h3>
+            <div className="pl-2">
+              <p className="text-slate-700 mb-8 font-medium text-[15px] leading-relaxed bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <T id="p1_s14_intro" multiline={true} />
+              </p>
+              <div className="relative border-l-2 border-slate-200 ml-4 space-y-8 pb-4 mt-8">
+                <div className="relative pl-8">
+                  <div className="absolute -left-[17px] top-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm"><i className="fas fa-database text-xs"></i></div>
+                  <h4 className="font-bold text-slate-800 mb-2"><T id="p1_s14_collecte_title" /></h4>
+                  <p className="text-sm text-slate-600 leading-relaxed"><T id="p1_s14_collecte_desc" multiline={true} /></p>
+                </div>
+                <div className="relative pl-8">
+                  <div className="absolute -left-[17px] top-0 w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm"><i className="fas fa-chart-pie text-xs"></i></div>
+                  <h4 className="font-bold text-slate-800 mb-2"><T id="p1_s14_demande_title" /></h4>
+                  <p className="text-sm text-slate-600 leading-relaxed"><T id="p1_s14_demande_desc" multiline={true} /></p>
+                </div>
+                <div className="relative pl-8">
+                  <div className="absolute -left-[17px] top-0 w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm"><i className="fas fa-users text-xs"></i></div>
+                  <h4 className="font-bold text-slate-800 mb-2"><T id="p1_s14_capa_title" /></h4>
+                  <p className="text-sm text-slate-600 leading-relaxed"><T id="p1_s14_capa_desc" multiline={true} /></p>
+                </div>
+                <div className="relative pl-8">
+                  <div className="absolute -left-[17px] top-0 w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm"><i className="fas fa-handshake text-xs"></i></div>
+                  <h4 className="font-bold text-slate-800 mb-2"><T id="p1_s14_rituel_title" /></h4>
+                  <p className="text-sm text-slate-600 leading-relaxed"><T id="p1_s14_rituel_desc" multiline={true} /></p>
+                </div>
+                <div className="relative pl-8">
+                  <div className="absolute -left-[17px] top-0 w-8 h-8 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm"><i className="fas fa-file-invoice-dollar text-xs"></i></div>
+                  <h4 className="font-bold text-slate-800 mb-2"><T id="p1_s14_finance_title" /></h4>
+                  <p className="text-sm text-slate-600 leading-relaxed"><T id="p1_s14_finance_desc" multiline={true} /></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-mouse-pointer text-blue-500 mr-3"></i> <T id="p1_game_title" />
+            </h3>
+            <div className="max-w-5xl mx-auto">
+              <p className="text-sm text-slate-500 mb-6 uppercase tracking-wide font-semibold text-center">
+                Reconstituez les 5 étapes de la procédure S&OP, et attribuez-y le Responsable et l'Instance correspondante.
+              </p>
+              <div className="space-y-4">
+                {puzzleItems.map(item => (
+                  <div key={item.id} className={`w-full flex flex-col xl:flex-row items-center p-4 rounded-xl border transition-all duration-200 gap-4 ${item.order !== null ? 'bg-blue-50/50 border-blue-200 shadow-inner' : 'bg-white border-slate-200 hover:border-blue-400 shadow-sm'}`}>
+                    <div className="flex-1 flex items-center w-full">
+                      <button onClick={() => handleOrderClick(item)} className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold mr-4 shrink-0 transition-colors shadow-sm ${item.order !== null ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600'}`}>
+                        {item.order !== null ? item.order : '?'}
+                      </button>
+                      <span className="text-left font-medium text-slate-700 leading-relaxed text-sm"><T id={item.textId} multiline={true} /></span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto shrink-0 border-t xl:border-t-0 xl:border-l border-slate-200 pt-3 xl:pt-0 xl:pl-4">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 mb-1 ml-1">Responsable principal</span>
+                        <select value={item.resp} onChange={(e) => { setPuzzleItems(puzzleItems.map(p => p.id === item.id ? { ...p, resp: e.target.value } : p)); setShowError(false); }} className="p-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 bg-white shadow-sm w-full sm:w-48">
+                          <option value="">-- Choisir --</option>
+                          <option value="sop_mgr">S&OP Manager</option>
+                          <option value="pm">Responsable Prop. / PM</option>
+                          <option value="mgr">Manager</option>
+                          <option value="copil">Copil BU</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 mb-1 ml-1">Instance / Réunion</span>
+                        <select value={item.inst} onChange={(e) => { setPuzzleItems(puzzleItems.map(p => p.id === item.id ? { ...p, inst: e.target.value } : p)); setShowError(false); }} className="p-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 bg-white shadow-sm w-full sm:w-48">
+                          <option value="">-- Choisir --</option>
+                          <option value="none">Pas d'instance</option>
+                          <option value="avant_demande">Mise à jour projet / Revue Demande</option>
+                          <option value="proj">Réunion Projet</option>
+                          <option value="rituel_sop">Rituel S&OP</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-xs text-slate-500 flex-1"><i className="fas fa-info-circle mr-1"></i> Cliquez sur la pastille '?' pour définir l'ordre chronologique. Cliquez à nouveau dessus pour recommencer.</div>
+                <button onClick={checkPuzzle} disabled={isSuccess} className={`w-full md:w-auto font-bold py-2.5 px-6 rounded-xl shadow-sm transition-colors text-sm ${isSuccess ? 'bg-green-600 text-white cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}>
+                  {isSuccess ? <><i className="fas fa-check mr-2"></i> Validé</> : 'Vérifier ma réponse'}
+                </button>
+              </div>
+              {showError && !isSuccess && <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold text-center animate-pulse border border-red-200"><i className="fas fa-times-circle mr-2 text-lg"></i> {showError}</div>}
+              {isSuccess && <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm font-bold text-center animate-fade-in border border-green-200"><i className="fas fa-check-circle mr-2 text-lg"></i> <T id="p1_game_success" /></div>}
+            </div>
+          </div>
+
+          {isSuccess && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden animate-fade-in mt-6 mb-8">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
+              <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center pl-2">
+                <i className="fas fa-user-shield text-purple-600 mr-3"></i> <T id="p1_role_main_title" />
+              </h3>
+              <div className="pl-2">
+                <p className="text-slate-700 mb-8 font-medium text-lg leading-relaxed"><T id="p1_role_intro" multiline={true} /></p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                  <div className="bg-green-50/50 p-6 rounded-xl border border-green-200 shadow-sm flex flex-col h-full">
+                    <h4 className="font-bold text-green-800 mb-5 flex items-center text-lg"><i className="fas fa-check-circle mr-2 text-green-600"></i> <T id="p1_role_do_title" /></h4>
+                    <ul className="space-y-5 text-sm text-slate-700 flex-1">
+                      <li className="flex items-start"><i className="fas fa-users text-green-600 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_do_1" multiline={true} /></span></li>
+                      <li className="flex items-start"><i className="fas fa-tasks text-green-600 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_do_2" multiline={true} /></span></li>
+                      <li className="flex items-start"><i className="fas fa-rocket text-green-600 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_do_3" multiline={true} /></span></li>
+                    </ul>
+                  </div>
+                  <div className="bg-red-50/50 p-6 rounded-xl border border-red-200 shadow-sm flex flex-col h-full">
+                    <h4 className="font-bold text-red-800 mb-5 flex items-center text-lg"><i className="fas fa-ban mr-2 text-red-600"></i> <T id="p1_role_dont_title" /></h4>
+                    <ul className="space-y-5 text-sm text-slate-700 flex-1">
+                      <li className="flex items-start"><i className="fas fa-file-excel text-red-500 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_dont_1" multiline={true} /></span></li>
+                      <li className="flex items-start"><i className="fas fa-project-diagram text-red-500 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_dont_2" multiline={true} /></span></li>
+                      <li className="flex items-start"><i className="fas fa-cogs text-red-500 mt-1 mr-3 shrink-0 text-base"></i> <span className="leading-relaxed"><T id="p1_role_dont_3" multiline={true} /></span></li>
+                    </ul>
+                  </div>
+                </div>
+                <OptionalT id="p1_opt_role" />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!isPart1Done} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${isPart1Done ? 'bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 2 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 2 : CAPACITE
+    // ==========================================
+    function Part2_Capacity({ onNext }) {
+      const [subTab, setSubTab] = useState('A');
+      const { completedTasks } = useContext(window.ContentContext) || {};
+      
+      const isRefDone = !!completedTasks['ex_p2_ref'];
+      const isAlgoDone = !!completedTasks['ex_p2_algo'];
+      const isPart2Done = isRefDone && isAlgoDone;
+
+      useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center"><i className="fas fa-database text-blue-600 mr-3"></i> <T id="p2_title" /></h2>
+            <p className="text-slate-600"><T id="p2_desc" multiline={true} /></p>
+            <div className="flex flex-wrap gap-2 mt-6">
+              <button onClick={() => setSubTab('A')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='A' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-sitemap mr-2"></i><T id="p2_tab_a" /> {isRefDone && <i className="fas fa-check-circle text-emerald-400 ml-1"></i>}</button>
+              <button onClick={() => setSubTab('B')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='B' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-calculator mr-2"></i><T id="p2_tab_b" /> {isAlgoDone && <i className="fas fa-check-circle text-emerald-400 ml-1"></i>}</button>
+              <button onClick={() => setSubTab('C')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='C' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-tasks mr-2"></i><T id="p2_tab_c" /></button>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            {subTab === 'A' && <Part2A_Referential />}
+            {subTab === 'B' && <Part2B_Algo />}
+            {subTab === 'C' && <Part2C_Statuses />}
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!isPart2Done} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${isPart2Done ? 'bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 3 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function Part2A_Referential() {
+      const [searchJob, setSearchJob] = useState('');
+      const [searchBU, setSearchBU] = useState('');
+      const [ex1Job, setEx1Job] = useState('');
+      const [ex1Dept, setEx1Dept] = useState('');
+      const [ex2Job, setEx2Job] = useState('');
+      const [ex2Dept, setEx2Dept] = useState('');
+      const [exStatus, setExStatus] = useState(null);
+
+      const { gainXp, completedTasks, isDevMode } = useContext(window.ContentContext) || {};
+      const codes = window.JOB_CODES || [];
+      const buList = window.BU_DATA || [];
+
+      const filteredCodes = codes.filter(j => j.name.toLowerCase().includes(searchJob.toLowerCase()) || j.code.toLowerCase().includes(searchJob.toLowerCase()) || j.family.toLowerCase().includes(searchJob.toLowerCase()));
+      const filteredBU = buList.filter(b => 
+        (b.codeBu && b.codeBu.toLowerCase().includes(searchBU.toLowerCase())) || 
+        (b.bu && b.bu.toLowerCase().includes(searchBU.toLowerCase())) || 
+        (b.codeDept && b.codeDept.toLowerCase().includes(searchBU.toLowerCase())) || 
+        (b.dept && b.dept.toLowerCase().includes(searchBU.toLowerCase()))
+      );
+
+      useEffect(() => {
+         if (completedTasks && completedTasks['ex_p2_ref']) {
+             setExStatus('success');
+             setEx1Job('H231'); setEx1Dept('AT12070');
+             setEx2Job('H621'); setEx2Dept('AT13053');
+         } else if (isDevMode) {
+             setEx1Job('H231'); setEx1Dept('AT12070');
+             setEx2Job('H621'); setEx2Dept('AT13053');
+         } else {
+             setExStatus(null);
+             setEx1Job(''); setEx1Dept('');
+             setEx2Job(''); setEx2Dept('');
+         }
+      }, [completedTasks, isDevMode]);
+
+      const checkExercise = () => {
+         const isEx1Ok = ex1Job.trim().toUpperCase() === 'H231' && ex1Dept.trim().toUpperCase() === 'AT12070';
+         const isEx2Ok = ex2Job.trim().toUpperCase() === 'H621' && ex2Dept.trim().toUpperCase() === 'AT13053';
+         
+         if (isEx1Ok && isEx2Ok) {
+            setExStatus('success');
+            if(gainXp) gainXp('ex_p2_ref');
+         } else {
+            setExStatus('error');
+         }
+      }
+
+      return (
+        <div className="space-y-6 animate-fade-in">
+           {/* Ligne 1: Tableaux de recherche */}
+           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              
+              {/* Tableau BU & Départements */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
+                  <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 text-lg flex items-center"><i className="fas fa-sitemap text-blue-500 mr-3"></i><T id="p2_a_org_title" /></h3>
+                  <p className="text-sm text-slate-600 mb-4"><T id="p2_a_org_desc" multiline={true} /></p>
+                  
+                  <div className="flex-1 space-y-2 mb-6 font-sans">
+                    <div className="bg-white border border-blue-200 rounded-xl p-4 flex items-start shadow-sm relative z-10">
+                      <div className="bg-blue-100 text-blue-700 w-10 h-10 rounded-lg flex items-center justify-center mr-4 shrink-0"><i className="fas fa-building text-lg"></i></div>
+                      <div><h4 className="font-bold text-sm text-slate-800"><T id="p2_a_bu_box_title" /></h4><p className="text-xs text-slate-500 mt-1 leading-relaxed"><T id="p2_a_bu_box_desc" multiline={true} /></p></div>
+                    </div>
+                    <div className="w-0.5 h-4 bg-slate-300 ml-9 -my-2 relative z-0"></div>
+                    <div className="bg-white border border-amber-200 rounded-xl p-4 flex items-start shadow-sm ml-4 relative z-10">
+                      <div className="absolute -left-4 top-1/2 w-4 h-0.5 bg-slate-300"></div>
+                      <div className="bg-amber-100 text-amber-700 w-10 h-10 rounded-lg flex items-center justify-center mr-4 shrink-0"><i className="fas fa-users text-lg"></i></div>
+                      <div><h4 className="font-bold text-sm text-slate-800"><T id="p2_a_dept_box_title" /></h4><p className="text-xs text-slate-500 mt-1 leading-relaxed"><T id="p2_a_dept_box_desc" multiline={true} /></p></div>
+                    </div>
+                    <div className="w-0.5 h-4 bg-slate-300 ml-16 -my-2 relative z-0"></div>
+                    <div className="bg-white border border-emerald-200 rounded-xl p-4 flex items-start shadow-sm ml-8 relative z-10">
+                      <div className="absolute -left-4 top-1/2 w-4 h-0.5 bg-slate-300"></div>
+                      <div className="bg-emerald-100 text-emerald-700 w-10 h-10 rounded-lg flex items-center justify-center mr-4 shrink-0"><i className="fas fa-layer-group text-lg"></i></div>
+                      <div><h4 className="font-bold text-sm text-slate-800"><T id="p2_a_uap_box_title" /></h4><p className="text-xs text-slate-500 mt-1 leading-relaxed"><T id="p2_a_uap_box_desc" multiline={true} /></p></div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 relative">
+                    <input type="text" placeholder="Rechercher Code BU, BU, Code Dept, Dept..." value={searchBU} onChange={e => setSearchBU(e.target.value)} className="w-full border border-slate-300 p-2.5 pl-10 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-slate-50" />
+                    <i className="fas fa-search absolute left-4 top-3.5 text-slate-400"></i>
+                  </div>
+                  
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl flex-1 max-h-[600px] overflow-y-auto bg-white shadow-inner">
+                     <table className="w-full text-left text-xs whitespace-nowrap">
+                        <thead className="bg-slate-50 text-slate-500 sticky top-0 border-b border-slate-200">
+                           <tr>
+                              <th className="p-3">Code BU</th>
+                              <th className="p-3">BU</th>
+                              <th className="p-3">Code département</th>
+                              <th className="p-3">Département</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                           {filteredBU.length > 0 ? filteredBU.map((b, i) => (
+                              <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                 <td className="p-3 font-bold text-slate-700">{b.codeBu}</td>
+                                 <td className="p-3 text-slate-600">{b.bu}</td>
+                                 <td className="p-3 font-mono text-blue-700 font-bold">{b.codeDept}</td>
+                                 <td className="p-3 text-slate-600">{b.dept}</td>
+                              </tr>
+                           )) : <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Aucun département trouvé. Vérifiez les données du fichier Code.gs.</td></tr>}
+                        </tbody>
+                     </table>
+                  </div>
+                  <OptionalT id="p2_opt_org" />
+              </div>
+
+              {/* Référentiel Métiers */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
+                  <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 text-lg flex items-center"><i className="fas fa-id-card-alt text-green-500 mr-3"></i><T id="p2_a_job_title" /></h3>
+                  <p className="text-sm text-slate-600 mb-4"><T id="p2_a_job_desc" multiline={true} /></p>
+                  
+                  <div className="mb-4 relative">
+                    <input type="text" placeholder="Rechercher (Code, Nom, Famille)..." value={searchJob} onChange={e => setSearchJob(e.target.value)} className="w-full border border-slate-300 p-2.5 pl-10 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-slate-50" />
+                    <i className="fas fa-search absolute left-4 top-3.5 text-slate-400"></i>
+                  </div>
+                  
+                  <div className="overflow-y-auto max-h-[600px] border border-slate-200 rounded-xl bg-slate-50 flex-1 shadow-inner p-2">
+                     {filteredCodes.length > 0 ? filteredCodes.map((c, i) => (
+                        <div key={i} className="text-xs p-3 border-b border-slate-200 last:border-0 text-slate-700 flex justify-between hover:bg-white transition-colors rounded-lg">
+                           <span className="flex-1 pr-2 truncate"><strong className="text-blue-900">{c.code}</strong> - {c.name}</span> 
+                           <span className="text-slate-500 bg-slate-200/50 px-2 py-1 rounded font-medium whitespace-nowrap">{c.family}</span>
+                        </div>
+                     )) : <div className="text-xs text-slate-500 p-4 text-center italic"><T id="p2_a_job_empty" /></div>}
+                  </div>
+              </div>
+           </div>
+
+           {/* Ligne 2: Exercice interactif */}
+           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+               <h3 className="font-bold text-slate-800 mb-2 pl-2 flex items-center text-lg"><i className="fas fa-dumbbell text-blue-500 mr-3"></i> Exercice d'application</h3>
+               <p className="text-sm text-slate-600 mb-6 pl-2">Mettez en pratique la lecture des référentiels en préparant les données pour la création de deux nouvelles ressources.</p>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pl-2">
+                  {/* Ressource 1 */}
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm relative">
+                     <span className="absolute -top-3 -left-3 w-8 h-8 bg-blue-100 text-blue-700 font-bold rounded-full flex items-center justify-center border-4 border-white shadow-sm">1</span>
+                     <h4 className="font-bold text-sm text-slate-700 mb-4 ml-2">Créer un <strong>Ingénieur calcul</strong> au sein de <strong>INNOV-R&D</strong></h4>
+                     
+                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Code Métier (Job Code)</label>
+                     <input type="text" value={ex1Job} onChange={e=>setEx1Job(e.target.value)} placeholder="Ex: H231" className="w-full p-2.5 border border-slate-300 rounded-lg mb-4 text-sm focus:border-blue-500 outline-none uppercase"/>
+                     
+                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Code Département (Cost Center)</label>
+                     <input type="text" value={ex1Dept} onChange={e=>setEx1Dept(e.target.value)} placeholder="Ex: AT12070" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 outline-none uppercase"/>
+                  </div>
+
+                  {/* Ressource 2 */}
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm relative">
+                     <span className="absolute -top-3 -left-3 w-8 h-8 bg-blue-100 text-blue-700 font-bold rounded-full flex items-center justify-center border-4 border-white shadow-sm">2</span>
+                     <h4 className="font-bold text-sm text-slate-700 mb-4 ml-2">Créer un <strong>Soudeur</strong> au sein de <strong>SPAT - UAP Reservoirs</strong></h4>
+                     
+                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Code Métier (Job Code)</label>
+                     <input type="text" value={ex2Job} onChange={e=>setEx2Job(e.target.value)} placeholder="Ex: H621" className="w-full p-2.5 border border-slate-300 rounded-lg mb-4 text-sm focus:border-blue-500 outline-none uppercase"/>
+                     
+                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Code Département (Cost Center)</label>
+                     <input type="text" value={ex2Dept} onChange={e=>setEx2Dept(e.target.value)} placeholder="Ex: AT13053" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 outline-none uppercase"/>
+                  </div>
+               </div>
+
+               <div className="mt-8 flex flex-col sm:flex-row items-center justify-between pl-2 gap-4 border-t border-slate-100 pt-6">
+                   <div className="flex-1 text-center sm:text-left">
+                      {exStatus === 'error' && <span className="text-red-500 font-bold text-sm animate-pulse border border-red-200 bg-red-50 px-4 py-2 rounded-lg"><i className="fas fa-times-circle mr-2"></i> Erreur dans les codes saisis. Recherchez bien les correspondances exactes dans les tableaux.</span>}
+                      {exStatus === 'success' && <span className="text-green-600 font-bold text-sm border border-green-200 bg-green-50 px-4 py-2 rounded-lg animate-fade-in"><i className="fas fa-check-circle mr-2 text-lg"></i> Bravo, codes exacts !</span>}
+                   </div>
+                   <button onClick={checkExercise} className="btn-primary w-full sm:w-auto shadow-md py-3 px-8 text-base">Vérifier mes saisies</button>
+               </div>
+           </div>
+        </div>
+      );
+    }
+
+    function Part2B_Algo() {
+      const [startDate, setStartDate] = useState('2026-02-01');
+      const [endDate, setEndDate] = useState('2026-02-28');
+      const [vacation, setVacation] = useState(10);
+      const [absenteeism, setAbsenteeism] = useState(0);
+      const [category, setCategory] = useState('IC');
+      const [wr, setWr] = useState(80);
+      const [exp, setExp] = useState(100);
+      const [gen, setGen] = useState(10);
+      
+      const [exCapaInput, setExCapaInput] = useState('');
+      const [exStatus, setExStatus] = useState(null);
+
+      const { content = {}, gainXp, completedTasks, isDevMode } = useContext(window.ContentContext) || {};
+
+      useEffect(() => {
+        if (completedTasks && completedTasks['ex_p2_algo']) {
+          setExStatus('success');
+          setExCapaInput('61');
+        } else if (isDevMode) {
+          setExCapaInput('61');
+          setExStatus(null);
+        } else {
+          setExStatus(null);
+          setExCapaInput('');
+        }
+      }, [completedTasks, isDevMode]);
+
+      const calculateWeekdays = (startStr, endStr) => {
+        const s = new Date(startStr);
+        const e = new Date(endStr);
+        if (isNaN(s) || isNaN(e) || s > e) return 0;
+        let count = 0;
+        let cur = new Date(s);
+        while (cur <= e) {
+          const day = cur.getDay();
+          if (day !== 0 && day !== 6) count++;
+          cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+      };
+
+      const workingDays = calculateWeekdays(startDate, endDate);
+      const catHours = category === 'IC' ? 42.5 : 37.5;
+      const baseHPerDay = catHours / 5;
+      const kr = baseHPerDay * (wr/100) * (exp/100) * (1 - gen/100);
+      const kg = (1 - vacation/100) * (1 - absenteeism/100);
+      const net = workingDays * kr * kg;
+
+      const checkExercise = () => {
+        const val = parseFloat(exCapaInput.replace(',', '.'));
+        if (Math.round(val) === 61 || val === 61.2) {
+           setExStatus('success');
+           if(gainXp) gainXp('ex_p2_algo');
+        } else {
+           setExStatus('error');
+        }
+      }
+
+      return (
+        <div className="space-y-6 animate-fade-in">
+        
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-cogs text-purple-600 mr-3"></i><T id="p2_b_title" />
+            </h3>
+            <p className="text-sm text-slate-700 mb-8 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100">
+              <T id="p2_b_desc" multiline={true} />
+            </p>
+            <OptionalT id="p2_opt_algo" />
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              
+              <div className="space-y-6 xl:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  <div className="bg-amber-50/50 p-6 rounded-xl border border-amber-200 shadow-sm flex flex-col">
+                    <h4 className="text-sm font-bold text-amber-900 mb-3 flex items-center border-b border-amber-200/50 pb-3">
+                      <i className="fas fa-university mr-2 text-amber-600"></i> <T id="p2_b_cdg_title" />
+                    </h4>
+                    <p className="text-xs text-amber-800 mb-5 leading-relaxed"><T id="p2_b_cdg_desc" multiline={true} /></p>
+                    
+                    <div className="space-y-4 bg-white p-4 rounded-lg border border-amber-100 shadow-sm flex-1">
+                      
+                      <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+                        <label className="text-xs font-bold text-amber-900 block mb-2">Période Comptable :</label>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="w-full p-1.5 text-xs border border-amber-200 rounded outline-none text-amber-900"/>
+                          <span className="text-amber-500 text-xs">à</span>
+                          <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="w-full p-1.5 text-xs border border-amber-200 rounded outline-none text-amber-900"/>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-bold text-amber-900 mt-3 pt-2 border-t border-amber-200/50">
+                          <span><T id="p2_b_label_wd" /></span>
+                          <span className="bg-white px-2 py-1 rounded border border-amber-200 text-amber-700">{workingDays} jours</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-amber-900 flex justify-between mb-2 mt-3">
+                          <span><T id="p2_b_label_vac" /></span> <span className="bg-amber-100 px-2 rounded font-mono">{vacation}%</span>
+                        </label>
+                        <input type="range" min="0" max="100" step="5" value={vacation} onChange={e=>setVacation(Number(e.target.value))} className="w-full accent-amber-600" />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-amber-900 flex justify-between mb-2">
+                          <span><T id="p2_b_label_abs" /></span> <span className="bg-amber-100 px-2 rounded font-mono">{absenteeism}%</span>
+                        </label>
+                        <input type="range" min="0" max="100" step="1" value={absenteeism} onChange={e=>setAbsenteeism(Number(e.target.value))} className="w-full accent-amber-600" />
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-200 shadow-sm flex flex-col">
+                    <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center border-b border-blue-200/50 pb-3">
+                      <i className="fas fa-user-edit mr-2 text-blue-600"></i> <T id="p2_b_mgr_title" />
+                    </h4>
+                    <p className="text-[11px] text-blue-800 mb-5 leading-relaxed"><T id="p2_b_mgr_desc" multiline={true} /></p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex-1">
+                      
+                      <div className="col-span-1 sm:col-span-2">
+                        <label className="text-[11px] font-bold text-blue-900 block mb-1.5"><T id="p2_b_label_cat" /></label>
+                        <select 
+                          value={category} 
+                          onChange={e=>setCategory(e.target.value)} 
+                          className="w-full p-2 text-xs border border-blue-200 rounded-lg outline-none bg-blue-50 text-blue-900"
+                        >
+                          <option value="IC">{content['p2_b_cat_IC'] || '[p2_b_cat_IC]'}</option>
+                          <option value="AMT">{content['p2_b_cat_AMT'] || '[p2_b_cat_AMT]'}</option>
+                          <option value="EO">{content['p2_b_cat_EO'] || '[p2_b_cat_EO]'}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-blue-900 flex justify-between mb-1.5">
+                          <span><T id="p2_b_label_wr" /></span> <span className="bg-blue-100 px-1.5 rounded font-mono">{wr}%</span>
+                        </label>
+                        <input type="range" min="20" max="100" step="10" value={wr} onChange={e=>setWr(Number(e.target.value))} className="w-full accent-blue-600" />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-blue-900 flex justify-between mb-1.5">
+                          <span><T id="p2_b_label_exp" /></span> <span className="bg-blue-100 px-1.5 rounded font-mono">{exp}%</span>
+                        </label>
+                        <input type="range" min="50" max="100" step="10" value={exp} onChange={e=>setExp(Number(e.target.value))} className="w-full accent-blue-600" />
+                      </div>
+
+                      <div className="col-span-1 sm:col-span-2">
+                        <label className="text-[10px] font-bold text-blue-900 flex justify-between mb-1.5">
+                          <span><T id="p2_b_label_gen" /></span> <span className="bg-blue-100 px-1.5 rounded font-mono">{gen}%</span>
+                        </label>
+                        <input type="range" min="0" max="50" step="1" value={gen} onChange={e=>setGen(Number(e.target.value))} className="w-full accent-blue-600" />
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="bg-[#0c1e36] text-white p-6 rounded-2xl flex flex-col justify-center items-center text-center shadow-xl relative overflow-hidden border-4 border-[#132c4a] w-full xl:w-72 shrink-0">
+                <div className="absolute top-0 right-0 p-4 opacity-5"><i className="fas fa-microchip text-8xl"></i></div>
+                <i className="fas fa-calculator text-5xl text-blue-400 mb-6 relative z-10 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]"></i>
+                <span className="text-sm text-blue-200 uppercase tracking-widest mb-3 font-bold relative z-10"><T id="p2_b_sim_title" /></span>
+                
+                <div className="bg-[#040a14] p-5 rounded-xl w-full border-t-2 border-l-2 border-black border-b border-r border-slate-700 shadow-[inset_0_4px_10px_rgba(0,0,0,0.5)] my-2 relative z-10 flex justify-center items-center">
+                  <span className="text-5xl font-mono font-bold text-green-400 tracking-wider" style={{ textShadow: '0 0 10px rgba(74, 222, 128, 0.5)' }}>
+                    {net.toFixed(0)}<span className="text-3xl ml-1 opacity-80">h</span>
+                  </span>
+                </div>
+                
+                <div className="text-[11px] text-slate-400 mt-6 border-t border-slate-700/50 pt-4 w-full relative z-10 flex flex-col items-center gap-1.5">
+                  <span className="text-white font-medium mb-1"><i className="fas fa-info-circle mr-1 text-blue-400"></i> Formule d'adéquation :</span>
+                  <span>Jours × Kr × Kg</span>
+                  <div className="flex gap-4 mt-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 w-full justify-center">
+                    <span>Kr = {kr.toFixed(2)}h/j</span>
+                    <span>Kg = {(kg * 100).toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden mt-8">
+             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+             <h3 className="font-bold text-slate-800 mb-2 pl-2 flex items-center text-lg"><i className="fas fa-dumbbell text-blue-500 mr-3"></i> Cas Pratique : Marc</h3>
+             <p className="text-sm text-slate-600 mb-6 pl-2">
+               Utilisez le simulateur ci-dessus avec les données suivantes :
+             </p>
+             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm ml-2 mb-6">
+               <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1 mb-4">
+                 <li><strong>Marc</strong> est <strong>Ingénieur/Cadre (IC)</strong>.</li>
+                 <li>Son temps de travail (Working Rate) est de <strong>50%</strong>.</li>
+                 <li>Il est pleinement autonome (Experience Level : <strong>100%</strong>).</li>
+                 <li>Ses tâches transverses (Frais Généraux) représentent <strong>20%</strong> de son temps.</li>
+                 <li>Période d'évaluation : du <strong>01/02/2026</strong> au <strong>28/02/2026</strong>.</li>
+                 <li>Consignes du CDG sur ce mois : <strong>10%</strong> de congés lissés, <strong>0%</strong> d'absentéisme.</li>
+               </ul>
+               <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <label className="font-bold text-slate-700 text-sm">Quelle est sa capacité nette dans OPTIMA ?</label>
+                  <div className="flex items-center gap-2">
+                     <input type="text" value={exCapaInput} onChange={e=>setExCapaInput(e.target.value)} placeholder="Ex: 120" className="w-24 p-2 border border-slate-300 rounded outline-none focus:border-blue-500 text-center" />
+                     <span className="font-bold text-slate-500">heures</span>
+                  </div>
+               </div>
+             </div>
+
+             <div className="flex flex-col sm:flex-row items-center justify-between pl-2 gap-4 border-t border-slate-100 pt-6">
+                 <div className="flex-1 text-center sm:text-left">
+                    {exStatus === 'error' && <span className="text-red-500 font-bold text-sm animate-pulse border border-red-200 bg-red-50 px-4 py-2 rounded-lg"><i className="fas fa-times-circle mr-2"></i> Incorrect. Revérifiez les paramètres insérés dans le simulateur (Arrondissez à l'entier).</span>}
+                    {exStatus === 'success' && <span className="text-green-600 font-bold text-sm border border-green-200 bg-green-50 px-4 py-2 rounded-lg animate-fade-in"><i className="fas fa-check-circle mr-2 text-lg"></i> Correct ! La capacité générée sera bien de 61h.</span>}
+                 </div>
+                 <button onClick={checkExercise} className="btn-primary w-full sm:w-auto shadow-md py-3 px-8 text-base">Valider la réponse</button>
+             </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Part2C_Statuses() {
+      return (
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in">
+          <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-5 text-xl flex items-center">
+            <i className="fas fa-network-wired text-green-600 mr-3"></i><T id="p2_c_title" />
+          </h3>
+          
+          <div className="bg-blue-50 border border-blue-200 p-5 rounded-xl mb-8 flex items-start shadow-sm">
+            <i className="fas fa-info-circle text-blue-500 text-2xl mr-4 mt-1"></i>
+            <div>
+              <h4 className="font-bold text-blue-900 mb-2"><T id="p2_c_flow_title" /></h4>
+              <p className="text-sm text-blue-800 leading-relaxed"><T id="p2_c_flow_desc" multiline={true} /></p>
+            </div>
+          </div>
+          
+          <OptionalT id="p2_opt_status" />
+
+          {/* Frise chronologique visuelle complète */}
+          <div className="relative border-l-4 border-slate-200 ml-6 space-y-12 pb-4 mt-10">
+            
+            {/* Etape 1 */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-plus-square text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 1 : Création de la ressource</h4>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                  Statut Brouillon (0 - Draft)
+                </p>
+              </div>
+              {/* Bifurcation d'annulation */}
+              <div className="mt-4 relative pl-8 border-l-2 border-dashed border-red-200 ml-4 py-2">
+                 <div className="absolute -left-[7px] top-1/2 w-3 h-0.5 bg-red-200"></div>
+                 <span className="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100"><i className="fas fa-times mr-1"></i> Annulation : Passe en Statut 10 - Ended</span>
+              </div>
+            </div>
+
+            {/* Etape 2 */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-check-double text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 2 : Validation de la ressource</h4>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200">
+                  Statut Validé (1 - Validated)
+                </p>
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 font-bold shadow-sm"><i className="fas fa-ban mr-1"></i> Pas d'affectation</span>
+              </div>
+            </div>
+
+            {/* Etape 3 & 3b */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-user-check text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 3 : Affectation d'un collaborateur</h4>
+              <p className="text-[10px] text-slate-500 italic mb-2">Etape 3 bis : Création d'un profil Externe</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200">
+                  Statut Validé (1 - Validated)
+                </p>
+                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-bold shadow-sm"><i className="fas fa-tasks mr-1"></i> Affectation de charge possible</span>
+              </div>
+            </div>
+
+            {/* Etape 4 */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-plane-arrival text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 4 : Planifier l'arrivée de la ressource</h4>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-sky-700 bg-sky-50 px-2 py-1 rounded border border-sky-200">
+                  Statut Attente d'arrivée réelle (2 - Waiting Real Arrival)
+                </p>
+                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-bold shadow-sm"><i className="fas fa-tasks mr-1"></i> Affectation de charge possible</span>
+              </div>
+            </div>
+
+            {/* Automatique : Arrivée -> Ongoing */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-magic text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm italic">Arrivée du collaborateur (Automatique à la date J)</h4>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
+                  Statut En cours (5 - Ongoing)
+                </p>
+                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-bold shadow-sm"><i className="fas fa-tasks mr-1"></i> Affectation de charge possible</span>
+              </div>
+            </div>
+
+            {/* Etape 5 : Bifurcation */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-calendar-alt text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 5 : Modification de la ressource avec date d'effectivité</h4>
+              
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg shadow-sm">
+                    <p className="text-xs font-bold text-amber-800 mb-1">Période Future modifiée</p>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded inline-block w-fit">Statut En attente de prise d'effet (4 - Pending Change)</span>
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-bold shadow-sm w-fit"><i className="fas fa-tasks mr-1"></i> Affectation possible</span>
+                    </div>
+                 </div>
+                 <div className="bg-green-50 border border-green-200 p-3 rounded-lg shadow-sm opacity-70">
+                    <p className="text-xs font-bold text-green-800 mb-1">Période Actuelle non modifiée</p>
+                    <span className="text-[11px] font-bold text-green-700 bg-green-100/50 px-2 py-1 rounded inline-block">Reste en Statut En cours (5 - Ongoing)</span>
+                 </div>
+              </div>
+            </div>
+
+            {/* Etape 7 & Cloture */}
+            <div className="relative pl-8">
+              <div className="absolute -left-[18px] top-0 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                <i className="fas fa-door-open text-xs"></i>
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Etape 7 : Planifier le départ</h4>
+              <p className="text-[10px] text-slate-500 italic mb-2">Etape 8 : Clôture de la ressource</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded border border-red-200">
+                  Statut Terminé (10 - Ended)
+                </p>
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 font-bold shadow-sm"><i className="fas fa-ban mr-1"></i> Pas d'affectation</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 3 : GESTION RESSOURCE
+    // ==========================================
+    function MatrixExercise({ onNext }) {
+      const [answers, setAnswers] = useState({
+        stat0: { def: '', capa: '', collab: '' },
+        stat1: { def: '', capa: '', collab: '' },
+        stat2: { def: '', capa: '', collab: '' },
+        stat5: { def: '', capa: '', collab: '' },
+        stat4: { def: '', capa: '', collab: '' },
+        statEnd: { def: '', capa: '', collab: '' }
+      });
+      const [showErrors, setShowErrors] = useState(false);
+      const { content = {}, gainXp, isDevMode, completedTasks } = useContext(window.ContentContext) || {};
+      
+      const correctAnswers = {
+        stat0: { def: 'opt0', capa: 'demande', collab: 'non' },
+        stat1: { def: 'opt1', capa: 'futur', collab: 'non' },
+        stat2: { def: 'opt2', capa: 'futur', collab: 'oui' },
+        stat5: { def: 'opt5', capa: 'actuel', collab: 'oui' },
+        stat4: { def: 'opt4', capa: 'futur', collab: 'oui' },
+        statEnd: { def: 'optEnd', capa: 'non', collab: 'non' }
+      };
+
+      useEffect(() => {
+        if ((completedTasks && completedTasks['matrix_p3']) || isDevMode) {
+           setAnswers(correctAnswers);
+           if (completedTasks && completedTasks['matrix_p3']) {
+              setShowErrors(true);
+           }
+        } else {
+           setAnswers({
+              stat0: { def: '', capa: '', collab: '' },
+              stat1: { def: '', capa: '', collab: '' },
+              stat2: { def: '', capa: '', collab: '' },
+              stat5: { def: '', capa: '', collab: '' },
+              stat4: { def: '', capa: '', collab: '' },
+              statEnd: { def: '', capa: '', collab: '' }
+           });
+           setShowErrors(false);
+        }
+      }, [completedTasks, isDevMode]);
+
+      const definitions = useMemo(() => {
+        const defs = [
+          { id: 'opt0', textId: "p2_c_def_0" },
+          { id: 'opt1', textId: "p2_c_def_1" },
+          { id: 'opt2', textId: "p2_c_def_2" },
+          { id: 'opt4', textId: "p2_c_def_4" },
+          { id: 'opt5', textId: "p2_c_def_5" },
+          { id: 'optEnd', textId: "p2_c_def_end" }
+        ];
+        return defs.sort(() => Math.random() - 0.5);
+      }, []);
+
+      const updateAnswer = (statId, field, value) => {
+        setAnswers(prev => ({ ...prev, [statId]: { ...prev[statId], [field]: value } }));
+        setShowErrors(false);
+      };
+
+      const isAllCorrect = Object.keys(correctAnswers).every(key => 
+        answers[key].def === correctAnswers[key].def && 
+        answers[key].capa === correctAnswers[key].capa && 
+        answers[key].collab === correctAnswers[key].collab
+      );
+
+      const handleCheck = () => {
+        setShowErrors(true);
+        if (isAllCorrect && gainXp) {
+          gainXp('matrix_p3'); 
+        }
+      };
+
+      const getSelectClass = (statId, field) => {
+        const val = answers[statId][field];
+        const isCorrect = val === correctAnswers[statId][field];
+        if (showErrors && !isCorrect) return 'border-red-500 bg-red-50 text-red-900 ring-2 ring-red-200';
+        if (showErrors && isCorrect) return 'border-green-500 bg-green-50 text-green-900 ring-2 ring-green-200';
+        if (val !== '') return 'border-blue-400 bg-blue-50 text-blue-900 ring-1 ring-blue-100';
+        return 'border-slate-300 bg-slate-50 text-slate-500 hover:border-slate-400';
+      };
+
+      const statusesToDisplay = [ 
+        { id: 'stat0', labelId: "p2_c_stat_0", icon: "fa-pencil-ruler", color: "slate" }, 
+        { id: 'stat1', labelId: "p2_c_stat_1", icon: "fa-user-check", color: "indigo" }, 
+        { id: 'stat2', labelId: "p2_c_stat_2", icon: "fa-plane-arrival", color: "sky" }, 
+        { id: 'stat5', labelId: "p2_c_stat_5", icon: "fa-play-circle", color: "emerald" }, 
+        { id: 'stat4', labelId: "p2_c_stat_4", icon: "fa-hourglass-half", color: "amber" }, 
+        { id: 'statEnd', labelId: "p2_c_stat_end", icon: "fa-door-closed", color: "red" }
+      ];
+
+      return (
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in flex flex-col h-full">
+          <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-5 text-xl flex items-center">
+            <i className="fas fa-tasks text-blue-600 mr-3"></i><T id="p3_matrix_title" />
+          </h3>
+          <p className="text-sm text-slate-700 mb-6 font-medium px-2"><T id="p3_matrix_desc" /></p>
+          <OptionalT id="p3_opt_matrix" />
+          <div className="space-y-6 max-w-5xl mx-auto flex-1">
+            {statusesToDisplay.map(stat => (
+              <div key={stat.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group">
+                <div className={`font-bold text-sm text-${stat.color}-700 flex items-center bg-${stat.color}-50 px-4 py-2.5 rounded-lg border border-${stat.color}-100 mb-4`}>
+                  <i className={`fas ${stat.icon} mr-3 w-5 text-center text-lg`}></i> <T id={stat.labelId} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <select className={`w-full p-3 text-xs rounded-lg outline-none transition-all shadow-inner font-medium ${getSelectClass(stat.id, 'def')}`} value={answers[stat.id].def} onChange={e => updateAnswer(stat.id, 'def', e.target.value)}>
+                    <option value="">-- 1. Choisir la Définition --</option>
+                    {definitions.map(d => <option key={d.id} value={d.id}>{content[d.textId] || `[${d.textId}]`}</option>)}
+                  </select>
+                  <select className={`w-full p-3 text-xs rounded-lg outline-none transition-all shadow-inner font-medium ${getSelectClass(stat.id, 'capa')}`} value={answers[stat.id].capa} onChange={e => updateAnswer(stat.id, 'capa', e.target.value)}>
+                    <option value="">-- 2. Prise en compte dans la capacité --</option>
+                    <option value="actuel">Oui (actuellement)</option>
+                    <option value="futur">Oui (Dans le futur)</option>
+                    <option value="demande">Capacité demandée</option>
+                    <option value="non">Non</option>
+                  </select>
+                  <select className={`w-full p-3 text-xs rounded-lg outline-none transition-all shadow-inner font-medium ${getSelectClass(stat.id, 'collab')}`} value={answers[stat.id].collab} onChange={e => updateAnswer(stat.id, 'collab', e.target.value)}>
+                    <option value="">-- 3. Un collaborateur est affecté ? --</option>
+                    <option value="oui">Oui</option>
+                    <option value="non">Non</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 flex flex-col md:flex-row justify-between items-center border-t border-slate-100 pt-6 gap-6">
+            <div className="text-sm font-bold flex-1">
+              {showErrors && isAllCorrect ? (
+                <span className="text-green-700 bg-green-50 px-5 py-3 rounded-xl border border-green-200 flex items-center shadow-sm animate-fade-in"><i className="fas fa-check-circle mr-3 text-2xl"></i> Excellent ! Vous maîtrisez les statuts.</span>
+              ) : (
+                <span className="text-slate-500 flex items-center bg-slate-50 px-5 py-3 rounded-xl border border-slate-100"><i className="fas fa-info-circle mr-3 text-xl text-blue-400"></i> Remplissez la matrice puis vérifiez vos réponses.</span>
+              )}
+            </div>
+            <div className="flex gap-4 w-full md:w-auto">
+              <button onClick={handleCheck} className="w-full md:w-auto shadow-md py-3 px-6 text-base bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold transition-all"><i className="fas fa-search mr-2"></i> Vérifier</button>
+              <button onClick={onNext} disabled={!isAllCorrect} className="btn-primary w-full md:w-auto shadow-md py-3 px-6 text-base">Passer à la Partie 4 <i className="fas fa-arrow-right ml-2"></i></button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Part3_ResourceMgmt({ onNext }) {
+      const [currentView, setCurrentView] = useState('diagram');
+      const [activeStep, setActiveStep] = useState('1');
+      const [activeVideoIndex, setActiveVideoIndex] = useState(1);
+      const [clickedSteps, setClickedSteps] = useState(new Set(['1']));
+      const { content = {}, setContent, isEditMode, gainXp, completedTasks } = useContext(window.ContentContext) || {};
+
+      const steps = [
+        { id: '1', prefix: "Etape 1", titleId: "p3_s1_title", label: "Création de la ressource", icon: "fa-plus-square", color: "slate" },
+        { id: '2', prefix: "Etape 2", titleId: "p3_s2_title", label: "Validation de la ressource", icon: "fa-check-double", color: "indigo" },
+        { id: '3', prefix: "Etape 3", titleId: "p3_s3_title", label: "Affectation collaborateur", icon: "fa-user-check", color: "emerald" },
+        { id: '3b', prefix: "Etape 3 bis", titleId: "p3_s3b_title", label: "Création collaborateur", icon: "fa-user-plus", color: "emerald" },
+        { id: '4', prefix: "Etape 4", titleId: "p3_s4_title", label: "Planifier l'arrivée", icon: "fa-plane-arrival", color: "sky" },
+        { id: 'ongoing', prefix: "Statut 5", titleId: "p3_songoing_title", label: "Ressource en cours", icon: "fa-play-circle", color: "emerald" },
+        { id: '5', prefix: "Etape 5", titleId: "p3_s5_title", label: "Modification (Avenant)", icon: "fa-calendar-alt", color: "amber" },
+        { id: '7', prefix: "Etape 7", titleId: "p3_s7_title", label: "Planifier le départ", icon: "fa-door-open", color: "orange" },
+        { id: '8', prefix: "Etape 8", titleId: "p3_s8_title", label: "Clôturer la ressource", icon: "fa-lock", color: "red" }
+      ];
+
+      useEffect(() => {
+        const next = new Set(['1']);
+        if (completedTasks) {
+          Object.keys(completedTasks).forEach(k => {
+             if (k.startsWith('diag3_')) next.add(k.replace('diag3_', ''));
+          });
+        }
+        setClickedSteps(next);
+      }, [completedTasks]);
+
+      const isAllStepsClicked = clickedSteps.size === steps.length;
+      const matrixCompleted = completedTasks && completedTasks['matrix_p3'];
+
+      useEffect(() => { 
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        if (gainXp) gainXp('diag3_1');
+      }, []);
+      useEffect(() => { setActiveVideoIndex(1); }, [activeStep]);
+
+      const handleNodeClick = (id) => {
+        setActiveStep(id);
+        if (!clickedSteps.has(id)) {
+            setClickedSteps(prev => new Set(prev).add(id));
+            if (gainXp) gainXp('diag3_' + id); 
+        }
+      };
+
+      const v1Url = content[`p3_s${activeStep}_v1`] || '';
+      const v2Url = content[`p3_s${activeStep}_v2`] || '';
+      const hasSecondVideo = v2Url && v2Url.trim() !== '';
+      const rawVideoUrl = activeVideoIndex === 1 ? v1Url : v2Url;
+
+      const formatVideoUrl = (url) => {
+        if (!url) return '';
+        let formatted = url.trim();
+        if (formatted.includes('drive.google.com/file/d/')) formatted = formatted.replace(/\/view.*$/, '/preview');
+        else if (formatted.includes('youtube.com/watch?v=')) formatted = `https://www.youtube.com/embed/${formatted.split('v=')[1].split('&')[0]}`;
+        else if (formatted.includes('youtu.be/')) formatted = `https://www.youtube.com/embed/${formatted.split('youtu.be/')[1].split('?')[0]}`;
+        return formatted;
+      };
+
+      const currentVideoUrl = formatVideoUrl(rawVideoUrl);
+
+      const FlowNode = ({ item }) => {
+        if (!item) return null;
+        const isActive = activeStep === item.id;
+        const isVisited = clickedSteps.has(item.id);
+        return (
+          <button onClick={() => handleNodeClick(item.id)} className={`flex flex-col items-center justify-center w-36 h-24 p-2 rounded-xl border-2 transition-all relative z-20 shrink-0 ${isActive ? `bg-${item.color}-50 border-${item.color}-500 text-${item.color}-900 ring-4 ring-${item.color}-100 scale-105 shadow-md` : `bg-white border-slate-200 text-slate-600 hover:border-${item.color}-300 hover:bg-slate-50 shadow-sm`}`}>
+            {isVisited && !isActive && <i className="fas fa-check-circle absolute top-2 right-2 text-emerald-500 text-xs"></i>}
+            <i className={`fas ${item.icon} text-xl mb-2 ${isActive ? `text-${item.color}-600` : 'text-slate-400'}`}></i>
+            <span className="text-[10px] font-bold text-center leading-tight">{item.prefix} :<br/>{item.label}</span>
+          </button>
+        );
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center"><i className="fas fa-project-diagram text-blue-600 mr-3"></i> <T id="p3_title" /></h2>
+            <p className="text-slate-600"><T id="p3_desc" multiline={true} /></p>
+            <div className="flex flex-wrap gap-2 mt-6">
+              <button onClick={() => setCurrentView('diagram')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${currentView==='diagram' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-project-diagram mr-2"></i>1. Diagramme Interactif</button>
+              <button onClick={() => { if (isAllStepsClicked) setCurrentView('test') }} disabled={!isAllStepsClicked} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${currentView==='test' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} ${!isAllStepsClicked ? 'opacity-50 cursor-not-allowed' : ''}`}><i className="fas fa-tasks mr-2"></i>2. Test de validation { !isAllStepsClicked && <i className="fas fa-lock ml-2 text-slate-400"></i> }</button>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            {currentView === 'diagram' && (
+              <>
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto flex justify-center mb-6">
+                  <div className="flex flex-col items-center relative pt-28 pb-4 w-full min-w-[900px]">
+                    <div className="absolute top-2 flex flex-col items-center">
+                      <FlowNode item={steps.find(s => s.id === '3b')} />
+                      <i className="fas fa-arrow-down text-slate-300 text-xl mt-3 mb-1"></i>
+                    </div>
+                    <div className="flex items-center relative z-10">
+                       <div className="absolute right-full mr-4 flex items-center gap-4">
+                          <FlowNode item={steps.find(s => s.id === '1')} />
+                          <i className="fas fa-arrow-right text-slate-300 text-xl"></i>
+                          <FlowNode item={steps.find(s => s.id === '2')} />
+                          <i className="fas fa-arrow-right text-slate-300 text-xl"></i>
+                       </div>
+                       <FlowNode item={steps.find(s => s.id === '3')} />
+                    </div>
+                    <i className="fas fa-arrow-down text-slate-300 text-xl my-3"></i>
+                    <div className="z-10"><FlowNode item={steps.find(s => s.id === '4')} /></div>
+                    <i className="fas fa-arrow-down text-slate-300 text-xl my-3"></i>
+                    <div className="z-20 relative"><FlowNode item={steps.find(s => s.id === 'ongoing')} /></div>
+                    <div className="relative mt-8 flex gap-6 w-[480px]">
+                       <div className="absolute top-[-32px] left-1/2 w-[2px] h-[32px] bg-slate-300"></div>
+                       <div className="absolute top-[-32px] left-1/2 -translate-x-1/2 w-[336px] h-[2px] bg-slate-300"></div>
+                       <div className="absolute top-[-32px] left-1/2 -translate-x-[168px] w-[2px] h-[32px] bg-slate-300"></div>
+                       <div className="absolute top-[-32px] left-1/2 translate-x-[168px] w-[2px] h-[32px] bg-slate-300"></div>
+                       <div className="w-36 flex justify-center z-10"><FlowNode item={steps.find(s => s.id === '5')} /></div>
+                       <div className="w-36 flex justify-center z-10"><FlowNode item={steps.find(s => s.id === '7')} /></div>
+                       <div className="w-36 flex justify-center z-10"><FlowNode item={steps.find(s => s.id === '8')} /></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    <div className="space-y-4 animate-fade-in" key={activeStep}>
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center border-b pb-3 border-slate-100">
+                        <i className={`fas ${steps.find(s => s.id === activeStep)?.icon || 'fa-info-circle'} text-${steps.find(s => s.id === activeStep)?.color || 'slate'}-500 mr-3`}></i>
+                        <T id={`p3_s${activeStep}_title`} />
+                      </h3>
+                      <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+                        <T id={`p3_s${activeStep}_desc`} multiline={true} />
+                      </p>
+                      
+                      <OptionalT id={`p3_opt_${activeStep}`} />
+
+                      {activeStep === '2' && <div className="bg-indigo-50 border-l-4 border-indigo-500 p-3 rounded text-xs text-indigo-800"><i className="fas fa-check mr-2"></i> La ressource doit être validée pour être visible dans les rapports capacitifs.</div>}
+                      {activeStep === '4' && <div className="bg-sky-50 border-l-4 border-sky-500 p-3 rounded text-xs text-sky-800"><i className="fas fa-envelope mr-2"></i> OPTIMA accompagne le manager pour faciliter l'intégration. Une notification et un e-mail lui sont automatiquement envoyés 7 jours avant l'arrivée prévue. Le Jour J, la ressource basculera toute seule au statut de production actif "Ongoing" (En cours) grâce à une tâche système matinale, sans qu'aucune action manuelle ne soit nécessaire.</div>}
+                      {activeStep === 'ongoing' && <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded text-xs text-emerald-800"><i className="fas fa-info-circle mr-2"></i> Le collaborateur est actif, il génère 100% de la capacité définie par son contrat. Depuis cet état, plusieurs actions d'évolution ou de clôture sont possibles.</div>}
+                      {activeStep === '5' && <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded text-xs text-amber-800"><i className="fas fa-lightbulb mr-2"></i> Depuis l'état "Ongoing", un avenant repousse temporairement le statut de la ressource en "4 - Pending".</div>}
+                      {activeStep === '7' && <div className="bg-orange-50 border-l-4 border-orange-500 p-3 rounded text-xs text-orange-800"><i className="fas fa-info-circle mr-2"></i> Planifier le départ est la meilleure méthode : la ressource se clôturera automatiquement le jour J.</div>}
+                      {activeStep === '8' && <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded text-xs text-red-800"><i className="fas fa-exclamation-triangle mr-2"></i> Ne jamais supprimer une ressource pour préserver l'historique. Utilisez la clôture.</div>}
+                    </div>
+                    <div className="flex flex-col h-full space-y-4">
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                        <div className="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 flex flex-col justify-center items-center">
+                          {currentVideoUrl ? (
+                            <iframe src={currentVideoUrl} className="w-full h-full border-0 absolute top-0 left-0" allowFullScreen={true} title={`Vidéo Tutoriel Étape ${activeStep}`}></iframe>
+                          ) : (
+                            <div className="text-slate-500 flex flex-col items-center p-6 text-center">
+                              <i className="fas fa-video-slash text-3xl mb-3 opacity-50"></i><span className="text-sm font-bold text-slate-400">Aucune vidéo configurée</span><span className="text-xs mt-2">Activez le "Mode Édition" pour ajouter un lien.</span>
+                            </div>
+                          )}
+                        </div>
+                        {hasSecondVideo && !isEditMode && (
+                          <div className="flex gap-2 mt-4">
+                            <button onClick={() => setActiveVideoIndex(1)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°1</button>
+                            <button onClick={() => setActiveVideoIndex(2)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 2 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°2</button>
+                          </div>
+                        )}
+                      </div>
+                      {isEditMode && (
+                        <div className="bg-amber-50 p-5 rounded-xl border-2 border-amber-300 shadow-sm animate-fade-in space-y-4 mt-4">
+                          <h4 className="font-bold text-amber-900 text-sm flex items-center"><i className="fas fa-cogs mr-2 text-amber-600"></i> Configuration des vidéos ({steps.find(s=>s.id===activeStep)?.prefix})</h4>
+                          <div>
+                            <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 1 :</label>
+                            <input type="text" value={content[`p3_s${activeStep}_v1`] || ''} onChange={e => setContent({...content, [`p3_s${activeStep}_v1`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 2 (Optionnel) :</label>
+                            <input type="text" value={content[`p3_s${activeStep}_v2`] || ''} onChange={e => setContent({...content, [`p3_s${activeStep}_v2`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-8 flex flex-col md:flex-row justify-between items-center border-t border-slate-100 pt-6 gap-4">
+                    <div className="text-xs text-slate-500 flex-1">
+                      <i className="fas fa-info-circle mr-1"></i> Cliquez sur chaque étape du diagramme pour découvrir son contenu. ({clickedSteps.size}/{steps.length})
+                      {isAllStepsClicked && !matrixCompleted && <div className="mt-2 text-blue-600 font-bold animate-fade-in text-sm"><i className="fas fa-arrow-up mr-1.5"></i> Diagramme consulté. Validez le test dans l'onglet ci-dessus pour continuer !</div>}
+                    </div>
+                    <button onClick={() => setCurrentView('test')} disabled={!isAllStepsClicked} className={`py-3 px-8 text-base rounded-xl font-bold transition-all shadow-sm ${!isAllStepsClicked ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md hover:-translate-y-0.5'}`}>
+                      Passer au test <i className="fas fa-arrow-right ml-2"></i>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {currentView === 'test' && (
+               <MatrixExercise onNext={onNext} />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 4 : AVANCE
+    // ==========================================
+    function Part4_Advanced({ onNext }) {
+      const [activeStep, setActiveStep] = useState('indispo');
+      const [activeVideoIndex, setActiveVideoIndex] = useState(1);
+      const [clickedSteps, setClickedSteps] = useState(new Set(['indispo']));
+      const { content = {}, setContent, isEditMode, gainXp, completedTasks } = useContext(window.ContentContext) || {};
+
+      const steps = [
+        { id: '1', prefix: "Etape 1", label: "Création", icon: "fa-plus-square", color: "slate", disabled: true },
+        { id: '2', prefix: "Etape 2", label: "Validation", icon: "fa-check-double", color: "slate", disabled: true },
+        { id: '3b', prefix: "Etape 3b", label: "Création Ext.", icon: "fa-user-plus", color: "slate", disabled: true },
+        { id: '3', prefix: "Etape 3", label: "Affectation", icon: "fa-user-check", color: "slate", disabled: true },
+        { id: '4', prefix: "Etape 4", label: "Arrivée", icon: "fa-plane-arrival", color: "slate", disabled: true },
+        { id: '5', prefix: "Etape 5", label: "Avenant", icon: "fa-calendar-alt", color: "slate", disabled: true },
+        { id: '7', prefix: "Etape 7", label: "Départ", icon: "fa-door-open", color: "slate", disabled: true },
+        { id: '8', prefix: "Etape 8", label: "Clôture", icon: "fa-lock", color: "slate", disabled: true },
+        { id: 'indispo', prefix: "Action", titleId: "p4_sindispo_title", label: "Indisponibilité", icon: "fa-bed", color: "amber" },
+        { id: 'complex_mod', prefix: "Action", titleId: "p4_scomplex_mod_title", label: "Modifs. Complexes", icon: "fa-chart-line", color: "blue" },
+        { id: 'pret_req', prefix: "Prêt", titleId: "p4_spret_req_title", label: "Demande de prêt", icon: "fa-hands-helping", color: "purple" },
+        { id: 'pret_acc', prefix: "Prêt", titleId: "p4_spret_acc_title", label: "Validation prêt", icon: "fa-check-circle", color: "purple" },
+        { id: 'pret_end', prefix: "Prêt", titleId: "p4_spret_end_title", label: "Fin du prêt", icon: "fa-hourglass-end", color: "purple" },
+        { id: 'trans_req', prefix: "Transfert", titleId: "p4_strans_req_title", label: "Demande transfert", icon: "fa-exchange-alt", color: "pink" },
+        { id: 'trans_acc', prefix: "Transfert", titleId: "p4_strans_acc_title", label: "Validation transfert", icon: "fa-check-circle", color: "pink" },
+        { id: 'trans_eff', prefix: "Transfert", titleId: "p4_strans_eff_title", label: "Prise d'effet", icon: "fa-calendar-check", color: "pink" }
+      ];
+
+      const activeStepsIds = steps.filter(s => !s.disabled).map(s => s.id);
+
+      useEffect(() => {
+        const next = new Set(['indispo']);
+        if (completedTasks) {
+          Object.keys(completedTasks).forEach(k => {
+             if (k.startsWith('diag4_')) next.add(k.replace('diag4_', ''));
+          });
+        }
+        setClickedSteps(next);
+      }, [completedTasks]);
+
+      const isAllStepsClicked = activeStepsIds.every(id => clickedSteps.has(id));
+
+      useEffect(() => { 
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        if (gainXp) gainXp('diag4_indispo');
+      }, []);
+      useEffect(() => { setActiveVideoIndex(1); }, [activeStep]);
+
+      const v1Url = content[`p4_s${activeStep}_v1`] || '';
+      const v2Url = content[`p4_s${activeStep}_v2`] || '';
+      const hasSecondVideo = v2Url && v2Url.trim() !== '';
+      const rawVideoUrl = activeVideoIndex === 1 ? v1Url : v2Url;
+
+      const formatVideoUrl = (url) => {
+        if (!url) return '';
+        let formatted = url.trim();
+        if (formatted.includes('drive.google.com/file/d/')) formatted = formatted.replace(/\/view.*$/, '/preview');
+        else if (formatted.includes('youtube.com/watch?v=')) formatted = `https://www.youtube.com/embed/${formatted.split('v=')[1].split('&')[0]}`;
+        else if (formatted.includes('youtu.be/')) formatted = `https://www.youtube.com/embed/${formatted.split('youtu.be/')[1].split('?')[0]}`;
+        return formatted;
+      };
+
+      const currentVideoUrl = formatVideoUrl(rawVideoUrl);
+
+      const FlowNode = ({ id }) => {
+        const item = steps.find(s => s.id === id);
+        if (!item) return null;
+        const isActive = activeStep === item.id;
+        const isDisabled = item.disabled;
+        const isVisited = clickedSteps.has(item.id);
+
+        return (
+          <button
+            onClick={() => {
+              if (!isDisabled) {
+                setActiveStep(item.id);
+                if (!clickedSteps.has(item.id)) {
+                  setClickedSteps(prev => new Set(prev).add(item.id));
+                  if (gainXp) gainXp('diag4_' + item.id);
+                }
+              }
+            }}
+            disabled={isDisabled}
+            className={`flex flex-col items-center justify-center w-[110px] sm:w-[120px] h-20 p-2 rounded-xl border-2 transition-all relative z-20 shrink-0
+              ${isDisabled ? 'bg-slate-50 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed' : isActive ? `bg-${item.color}-50 border-${item.color}-500 text-${item.color}-900 ring-4 ring-${item.color}-100 scale-105 shadow-md` : `bg-white border-slate-200 text-slate-600 hover:border-${item.color}-300 hover:bg-slate-50 shadow-sm cursor-pointer`}`}
+          >
+            {isVisited && !isActive && !isDisabled && <i className="fas fa-check-circle absolute top-1.5 right-1.5 text-emerald-500 text-[10px]"></i>}
+            <i className={`fas ${item.icon} text-lg mb-1.5 ${isActive ? `text-${item.color}-600` : isDisabled ? 'text-slate-300' : 'text-slate-400'}`}></i>
+            <span className="text-[9px] font-bold text-center leading-tight">
+              {!isDisabled && item.prefix && <span className="opacity-75">{item.prefix}<br/></span>}
+              {item.label}
+            </span>
+          </button>
+        );
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center"><i className="fas fa-level-up-alt text-blue-600 mr-3"></i> <T id="p4_title" /></h2>
+            <p className="text-slate-600"><T id="p4_desc" multiline={true} /></p>
+          </div>
+
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+            <div className="flex flex-col items-center relative py-4 w-full min-w-[800px]">
+              <div className="flex items-center justify-center gap-2 scale-90 origin-top opacity-70 mb-2 w-full">
+                <FlowNode id="1" /><i className="fas fa-arrow-right text-slate-300"></i><FlowNode id="2" /><i className="fas fa-arrow-right text-slate-300"></i>
+                <div className="flex flex-col items-center"><FlowNode id="3b" /><i className="fas fa-arrow-down text-slate-300 my-1"></i><FlowNode id="3" /></div>
+                <i className="fas fa-arrow-right text-slate-300"></i><FlowNode id="4" /><i className="fas fa-arrow-right text-slate-300"></i>
+                <div className="bg-emerald-50 border-2 border-emerald-500 text-emerald-900 px-5 py-3 rounded-xl flex items-center shadow-md z-20">
+                  <i className="fas fa-play-circle text-emerald-500 mr-3 text-2xl"></i>
+                  <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-emerald-600 leading-tight">Statut 5</span><span className="text-sm font-extrabold tracking-wide">Ressource Ongoing</span></div>
+                </div>
+              </div>
+              <i className="fas fa-arrow-down text-slate-300 text-2xl my-3"></i>
+              <div className="w-full flex justify-center relative mt-4 border-t-2 border-slate-200 pt-8">
+                <div className="absolute top-0 left-1/2 w-[2px] h-[32px] bg-slate-200 -translate-y-full"></div>
+                <div className="flex flex-wrap justify-center gap-6 w-full">
+                  <div className="flex gap-2 sm:gap-3 border border-slate-100 bg-slate-50/50 p-3 rounded-2xl items-center relative">
+                    <span className="absolute -top-3 left-4 bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold">Classiques (Vu en P3)</span>
+                    <FlowNode id="5" /><FlowNode id="7" /><FlowNode id="8" />
+                  </div>
+                  <div className="flex gap-2 sm:gap-3 border border-blue-100 bg-blue-50/30 p-3 rounded-2xl relative">
+                    <span className="absolute -top-3 left-4 bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold">Spécifiques</span>
+                    <FlowNode id="indispo" /><FlowNode id="complex_mod" />
+                  </div>
+                  <div className="flex gap-2 sm:gap-3 items-center border border-purple-200 bg-purple-50/30 p-3 rounded-2xl relative">
+                    <span className="absolute -top-3 left-4 bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[9px] font-bold border border-purple-200">Workflows de Prêt</span>
+                    <FlowNode id="pret_req" /><i className="fas fa-arrow-right text-purple-300 text-sm sm:text-lg"></i><FlowNode id="pret_acc" /><i className="fas fa-arrow-right text-purple-300 text-sm sm:text-lg"></i><FlowNode id="pret_end" />
+                  </div>
+                  <div className="flex gap-2 sm:gap-3 items-center border border-pink-200 bg-pink-50/30 p-3 rounded-2xl relative">
+                    <span className="absolute -top-3 left-4 bg-pink-100 text-pink-700 px-2 py-0.5 rounded text-[9px] font-bold border border-pink-200">Workflows de Transfert</span>
+                    <FlowNode id="trans_req" /><i className="fas fa-arrow-right text-pink-300 text-sm sm:text-lg"></i><FlowNode id="trans_acc" /><i className="fas fa-arrow-right text-pink-300 text-sm sm:text-lg"></i><FlowNode id="trans_eff" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              <div className="space-y-4 animate-fade-in" key={activeStep}>
+                <h3 className="text-xl font-bold text-slate-800 flex items-center border-b pb-3 border-slate-100">
+                  <i className={`fas ${steps.find(s => s.id === activeStep)?.icon || 'fa-info-circle'} text-${steps.find(s => s.id === activeStep)?.color || 'slate'}-500 mr-3`}></i>
+                  <T id={`p4_s${activeStep}_title`} />
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+                  <T id={`p4_s${activeStep}_desc`} multiline={true} />
+                </p>
+
+                <OptionalT id={`p4_opt_${activeStep}`} />
+
+                {['trans_req', 'trans_acc', 'trans_eff', 'pret_req', 'pret_acc', 'pret_end'].includes(activeStep) && (
+                  <div className="bg-sky-50 border border-sky-200 p-5 rounded-xl shadow-sm mt-4 animate-fade-in relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-sky-500"></div>
+                    <h4 className="font-bold text-sky-900 text-sm mb-2 flex items-center"><i className="fas fa-envelope-open-text text-sky-600 mr-2 text-lg"></i> Système de Notifications (E-mails)</h4>
+                    <p className="text-xs text-sky-800 leading-relaxed"><T id="p4_trans_mails_desc" multiline={true} /></p>
+                  </div>
+                )}
+                {activeStep === 'pret_req' && <div className="bg-purple-50 border-l-4 border-purple-500 p-3 rounded text-xs text-purple-800"><i className="fas fa-info-circle mr-2"></i> Le prêt ne transfère que la capacité sur une période donnée. Le collaborateur reste rattaché à son manager d'origine.<br/><br/>Période de validité : Les dates d'un prêt doivent impérativement être comprises à l'intérieur de la période d'activité de la ressource d'origine.<br/><br/>Plafond de 100% : La somme des taux de prêts en cours pour un même collaborateur ne peut pas dépasser 100%.</div>}
+                {activeStep === 'pret_end' && <div className="bg-purple-50 border-l-4 border-purple-500 p-3 rounded text-xs text-purple-800"><i className="fas fa-magic mr-2"></i> Le retour de capacité est 100% automatique, aucune action du manager d'origine n'est requise à la date de fin.</div>}
+                {activeStep === 'trans_req' && <div className="bg-pink-50 border-l-4 border-pink-500 p-3 rounded text-xs text-pink-800"><i className="fas fa-exclamation-triangle mr-2"></i> Attention, le transfert est définitif. Il modifie le Cost Center (Département) du collaborateur.</div>}
+                {activeStep === 'trans_eff' && <div className="bg-pink-50 border-l-4 border-pink-500 p-3 rounded text-xs text-pink-800"><i className="fas fa-eye-slash mr-2"></i> Une fois la date d'effet atteinte, l'ancien manager perd la visibilité sur la ressource qui est désormais sous la responsabilité exclusive du nouveau département.</div>}
+                {activeStep === 'complex_mod' && <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-xs text-blue-800"><i className="fas fa-lightbulb mr-2"></i> L'utilisation de la fonction "planifier un changement" met à jour la date de fin d'une ressource. Si celle-ci est annulée, il faudra re-planifier son départ à la date initiale.</div>}
+              </div>
+
+              <div className="flex flex-col h-full space-y-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                  <div className="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 flex flex-col justify-center items-center">
+                    {currentVideoUrl ? (
+                      <iframe src={currentVideoUrl} className="w-full h-full border-0 absolute top-0 left-0" allowFullScreen={true} title={`Vidéo Tutoriel Partie 4 - ${activeStep}`}></iframe>
+                    ) : (
+                      <div className="text-slate-500 flex flex-col items-center p-6 text-center">
+                        <i className="fas fa-video-slash text-3xl mb-3 opacity-50"></i><span className="text-sm font-bold text-slate-400">Aucune vidéo configurée</span><span className="text-xs mt-2">Activez le "Mode Édition" pour ajouter un lien.</span>
+                      </div>
+                    )}
+                  </div>
+                  {hasSecondVideo && !isEditMode && (
+                    <div className="flex gap-2 mt-4">
+                      <button onClick={() => setActiveVideoIndex(1)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°1</button>
+                      <button onClick={() => setActiveVideoIndex(2)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 2 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°2</button>
+                    </div>
+                  )}
+                </div>
+                {isEditMode && (
+                  <div className="bg-amber-50 p-5 rounded-xl border-2 border-amber-300 shadow-sm animate-fade-in space-y-4 mt-4">
+                    <h4 className="font-bold text-amber-900 text-sm flex items-center"><i className="fas fa-cogs mr-2 text-amber-600"></i> Configuration des vidéos ({steps.find(s=>s.id===activeStep)?.label})</h4>
+                    <div>
+                      <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 1 :</label>
+                      <input type="text" value={content[`p4_s${activeStep}_v1`] || ''} onChange={e => setContent({...content, [`p4_s${activeStep}_v1`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 2 (Optionnel) :</label>
+                      <input type="text" value={content[`p4_s${activeStep}_v2`] || ''} onChange={e => setContent({...content, [`p4_s${activeStep}_v2`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-4 text-xs text-slate-500 border-t border-slate-100 text-center">
+              <i className="fas fa-info-circle mr-1"></i> Cliquez sur chaque bulle d'action spécifique, de prêt ou de transfert pour découvrir son contenu. ({clickedSteps.size}/{activeStepsIds.length})
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!isAllStepsClicked} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${isAllStepsClicked ? 'bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 5 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 5 : AFFECTATION CHARGE (NOUVEAU MOTEUR TEMPS REEL)
+    // ==========================================
+    function Part5_Workload({ onNext, userSession }) {
+      const [subTab, setSubTab] = useState('A');
+      const [feedback, setFeedback] = useState('');
+      const [rating, setRating] = useState(0);
+      const [submitted, setSubmitted] = useState(false);
+      
+      // Diagramme interactif (Tab B)
+      const [activeStep, setActiveStep] = useState('L1');
+      const [clickedSteps, setClickedSteps] = useState(new Set(['L1']));
+      const [activeVideoIndex, setActiveVideoIndex] = useState(1);
+
+      const { content = {}, setContent, isEditMode, gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const isAssignDone = !!completedTasks['assign_p5'];
+
+      useEffect(() => {
+        const next = new Set(['L1']);
+        if (completedTasks) {
+          Object.keys(completedTasks).forEach(k => {
+             if (k.startsWith('diag5_')) next.add(k.replace('diag5_', ''));
+          });
+        }
+        setClickedSteps(next);
+      }, [completedTasks]);
+
+      // --- Moteur de Simulation d'Affectation ---
+      const chartRefRealTime = useRef(null);
+      const chartInstanceRT = useRef(null);
+      
+      // ChartRef for Theory Tab
+      const chartRef18M = useRef(null);
+      const chartInstance18M = useRef(null);
+
+      const resList = useMemo(() => [
+        { id: 'res1', name: "Alice", role: "Ingé Senior", job: "H231", capa: 150 },
+        { id: 'res2', name: "Bob", role: "Soudeur", job: "H621", capa: 100 },
+        { id: 'res3', name: "Charlie", role: "Technicien", job: "H123", capa: 120 }
+      ], []);
+      
+      const needR1 = 100;
+      const needR2 = 120;
+      const needR3 = 80;
+
+      const [valR1, setValR1] = useState({ res1: '', res2: '', res3: '' }); // Pourcentages
+      const [valR2, setValR2] = useState({ res1: '', res2: '', res3: '' }); // Priorités
+      const [valR3, setValR3] = useState({ res1: '', res2: '', res3: '' }); // Heures Manuelles
+      const [simError, setSimError] = useState(null);
+
+      // Calcul cascade en temps réel
+      const calcData = useMemo(() => {
+        const usedR1 = { res1: 0, res2: 0, res3: 0 };
+        const usedR2 = { res1: 0, res2: 0, res3: 0 };
+        const usedR3 = { res1: 0, res2: 0, res3: 0 };
+
+        let remNeedR1 = needR1;
+        // R1: Distribution selon les % (avec plafonnement au besoin restant ET à la capacité)
+        resList.forEach(r => {
+          let pct = parseFloat(valR1[r.id]);
+          if (isNaN(pct) || pct < 0) pct = 0;
+          let asked = (pct / 100) * needR1;
+          
+          let alloc = Math.min(asked, remNeedR1); // Plafonnement à la charge restante du projet
+          alloc = Math.min(alloc, r.capa);        // Plafonnement à la capacité dispo
+          
+          usedR1[r.id] = alloc;
+          remNeedR1 -= alloc;
+        });
+
+        // R2: Distribution selon la priorité
+        let remNeedR2 = needR2;
+        const prios = resList.map(r => ({ id: r.id, p: parseInt(valR2[r.id]) })).filter(x => !isNaN(x.p) && x.p > 0).sort((a,b) => a.p - b.p);
+        prios.forEach(p => {
+          let r = resList.find(x => x.id === p.id);
+          let avail = r.capa - usedR1[r.id]; // Capacité restante après R1
+          let alloc = Math.min(remNeedR2, avail);
+          usedR2[r.id] = alloc;
+          remNeedR2 -= alloc;
+        });
+
+        // R3: Distribution manuelle
+        let remNeedR3 = needR3;
+        resList.forEach(r => {
+          let asked = parseFloat(valR3[r.id]);
+          if (isNaN(asked) || asked < 0) asked = 0;
+          let avail = r.capa - usedR1[r.id] - usedR2[r.id]; // Capacité restante après R1 & R2
+          
+          let alloc = Math.min(asked, avail);
+          usedR3[r.id] = alloc;
+          remNeedR3 -= alloc;
+        });
+
+        // Validation des règles pour le bouton
+        const sumPct = Object.values(valR1).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+        const isR1Valid = sumPct === 100 && remNeedR1 === 0;
+        
+        const prioSet = new Set(prios.map(p=>p.p));
+        const isR2Valid = remNeedR2 === 0 && prios.length > 0 && prioSet.size === prios.length;
+
+        const isR3Valid = remNeedR3 === 0;
+
+        return { usedR1, usedR2, usedR3, remNeedR1, remNeedR2, remNeedR3, isR1Valid, isR2Valid, isR3Valid, sumPct };
+      }, [valR1, valR2, valR3, resList]);
+
+      // Mettre à jour le graphique Temps Réel (Onglet B)
+      useEffect(() => {
+        if (subTab === 'B' && chartRefRealTime.current) {
+          if (!chartInstanceRT.current) {
+            const ctx = chartRefRealTime.current.getContext('2d');
+            chartInstanceRT.current = new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels: resList.map(r => r.name),
+                datasets: [
+                  { label: 'R1 (Proj A)', data: [0,0,0], backgroundColor: '#3b82f6', stack: 'Stack 0' },
+                  { label: 'R2 (Proj B)', data: [0,0,0], backgroundColor: '#8b5cf6', stack: 'Stack 0' },
+                  { label: 'R3 (Proj C)', data: [0,0,0], backgroundColor: '#10b981', stack: 'Stack 0' },
+                  { label: 'Capa Dispo', data: resList.map(r=>r.capa), backgroundColor: '#e2e8f0', stack: 'Stack 0' }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                  tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                  x: { stacked: true },
+                  y: { stacked: true, beginAtZero: true, max: 180 }
+                }
+              }
+            });
+          } else {
+            // Update Data
+            const chart = chartInstanceRT.current;
+            chart.data.datasets[0].data = resList.map(r => calcData.usedR1[r.id]);
+            chart.data.datasets[1].data = resList.map(r => calcData.usedR2[r.id]);
+            chart.data.datasets[2].data = resList.map(r => calcData.usedR3[r.id]);
+            chart.data.datasets[3].data = resList.map(r => r.capa - calcData.usedR1[r.id] - calcData.usedR2[r.id] - calcData.usedR3[r.id]);
+            chart.update();
+          }
+        }
+        
+        // Cleanup chart instance when unmounting or changing tab
+        return () => {
+           if (chartInstanceRT.current && subTab !== 'B') {
+               chartInstanceRT.current.destroy();
+               chartInstanceRT.current = null;
+           }
+        };
+      }, [subTab, calcData, resList]);
+
+      // Mettre à jour le graphique Théorie 18 Mois (Onglet A)
+      useEffect(() => {
+        if (subTab === 'A' && chartRef18M.current) {
+          if (!chartInstance18M.current) {
+            const ctx = chartRef18M.current.getContext('2d');
+            
+            const labels = Array.from({length: 18}, (_, i) => `M${i+1}`);
+            const workloadData = [160, 160, 160, 150, 150, 140, 120, 100, 80, 70, 60, 50, 40, 30, 20, 10, 0, 0];
+            const capacityData = Array(18).fill(150);
+            const allocatedData = Array(18).fill(0); // Allocated is 0 as requested
+
+            chartInstance18M.current = new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    type: 'line', label: 'Charge Projet (Workload)', data: workloadData,
+                    borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 2, tension: 0.3, pointRadius: 2
+                  },
+                  {
+                    type: 'bar', label: 'Capacité Équipe', data: capacityData,
+                    backgroundColor: '#e2e8f0', barPercentage: 0.6
+                  },
+                  {
+                    type: 'bar', label: 'Charge Allouée', data: allocatedData,
+                    backgroundColor: '#10b981', barPercentage: 0.6
+                  }
+                ]
+              },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, max: 200 } }
+              }
+            });
+          }
+        }
+
+        // Cleanup
+        return () => {
+           if (chartInstance18M.current && subTab !== 'A') {
+               chartInstance18M.current.destroy();
+               chartInstance18M.current = null;
+           }
+        };
+      }, [subTab]);
+
+
+      const stepsP5 = [
+        { id: 'L1', labelId: 'p5_step_L1_label', color: 'slate', icon: 'fa-folder-open' },
+        { id: 'L2', labelId: 'p5_step_L2_label', color: 'slate', icon: 'fa-edit' },
+        { id: 'L3', labelId: 'p5_step_L3_label', color: 'blue', icon: 'fa-cut' },
+        { id: 'L4', labelId: 'p5_step_L4_label', color: 'blue', icon: 'fa-user-plus' },
+        { id: 'L5', labelId: 'p5_step_L5_label', color: 'slate', icon: 'fa-keyboard' },
+        { id: 'val', labelId: 'p5_step_val_label', color: 'green', icon: 'fa-check-double' }
+      ];
+
+      const isAllStepsClicked = clickedSteps.size === stepsP5.length;
+
+      useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
+
+      useEffect(() => {
+        if (completedTasks) {
+          setSubmitted(!!(completedTasks['feedback']));
+        }
+      }, [completedTasks]);
+
+      useEffect(() => {
+        if (calcData.sumPct > 100) {
+           setSimError({ type: 'overload', msg: "Surcharge ! La somme des % de R1 dépasse 100%. Le système a plafonné l'affectation à la charge restante du besoin." });
+        } else if (simError && simError.type === 'overload') {
+           setSimError(null);
+        }
+      }, [calcData.sumPct]);
+
+      const handleSaveTeam = () => {
+        if (calcData.isR1Valid && calcData.isR2Valid && calcData.isR3Valid) {
+           setSimError({ type: 'success', msg: "Félicitations ! Toute la charge est parfaitement allouée selon les règles du système sans dépasser les capacités." });
+           if(gainXp) gainXp('assign_p5');
+           setTimeout(() => setSubTab('C'), 2500);
+        } else {
+           setSimError({ type: 'error', msg: "Erreur. Veuillez vérifier que la règle R1 fait exactement 100%, que R2 a des priorités uniques (ex: 1, 2) et que tous les besoins restants sont à 0h." });
+        }
+      };
+
+      const handleNodeClick = (id) => {
+        setActiveStep(id);
+        if (!clickedSteps.has(id)) {
+            setClickedSteps(prev => new Set(prev).add(id));
+            if (gainXp) gainXp('diag5_' + id); // Enregistre la vue de l'étape
+        }
+      };
+
+      const v1Url = content[`p5_step_${activeStep}_v1`] || '';
+      const v2Url = content[`p5_step_${activeStep}_v2`] || '';
+      const hasSecondVideo = v2Url && v2Url.trim() !== '';
+      const rawVideoUrl = activeVideoIndex === 1 ? v1Url : v2Url;
+
+      const formatVideoUrl = (url) => {
+        if (!url) return '';
+        let formatted = url.trim();
+        if (formatted.includes('drive.google.com/file/d/')) formatted = formatted.replace(/\/view.*$/, '/preview');
+        else if (formatted.includes('youtube.com/watch?v=')) formatted = `https://www.youtube.com/embed/${formatted.split('v=')[1].split('&')[0]}`;
+        else if (formatted.includes('youtu.be/')) formatted = `https://www.youtube.com/embed/${formatted.split('youtu.be/')[1].split('?')[0]}`;
+        return formatted;
+      };
+
+      const currentVideoUrl = formatVideoUrl(rawVideoUrl);
+
+      const handleSubmitFeedback = () => {
+        if (!rating) return;
+        setSubmitted(true);
+        if (gainXp) gainXp('feedback'); 
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center"><i className="fas fa-tasks text-blue-600 mr-3"></i> <T id="p5_title" /></h2>
+            <p className="text-slate-600"><T id="p5_desc" multiline={true} /></p>
+            <div className="flex flex-wrap gap-2 mt-6">
+              <button onClick={() => setSubTab('A')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='A' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-book-open mr-2"></i><T id="p5_tab_a" /></button>
+              <button onClick={() => setSubTab('B')} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='B' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-laptop-code mr-2"></i><T id="p5_tab_b" /> {isAssignDone && <i className="fas fa-check-circle text-emerald-400 ml-1"></i>}</button>
+              <button onClick={() => setSubTab('C')} disabled={!isAssignDone} className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${subTab==='C' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} ${!isAssignDone ? 'opacity-50 cursor-not-allowed' : ''}`}><i className="fas fa-flag-checkered mr-2"></i><T id="p5_tab_c" /> {!isAssignDone && <i className="fas fa-lock ml-1 text-slate-400"></i>}</button>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            {/* THÉORIE */}
+            {subTab === 'A' && (
+               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in space-y-8">
+                 
+                 <Accordion titleId="p5_a_intro_proj_title" icon="fa-briefcase" defaultOpen={true}>
+                    <div className="mt-4 space-y-4">
+                      <p className="text-sm text-slate-700 leading-relaxed bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-inner">
+                        <T id="p5_a_intro_proj_desc" multiline={true} />
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><i className="fas fa-tag text-indigo-600 mr-2"></i><T id="p5_a_proj_type1_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_proj_type1_desc" multiline={true} /></p>
+                        </div>
+                        
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><i className="fas fa-flask text-emerald-600 mr-2"></i><T id="p5_a_proj_type2_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_proj_type2_desc" multiline={true} /></p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 border-t border-slate-100 pt-4">
+                        <h4 className="font-bold text-slate-800 text-sm mb-4"><i className="fas fa-history text-slate-400 mr-2"></i><T id="p5_a_proj_cycle_title" /></h4>
+                        
+                        <div className="space-y-4">
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                            <h5 className="font-bold text-xs text-amber-700 uppercase tracking-wide mb-2"><T id="p5_a_proj_phase1_title" /></h5>
+                            <p className="text-xs text-slate-600 mb-2"><T id="p5_a_proj_phase1_desc" multiline={true} /></p>
+                            <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded"><T id="p5_a_proj_step1" /></span>
+                              <i className="fas fa-arrow-right text-slate-300 mt-1"></i>
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded"><T id="p5_a_proj_step2" /></span>
+                              <i className="fas fa-arrow-right text-slate-300 mt-1"></i>
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded"><T id="p5_a_proj_step3" /></span>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                            <h5 className="font-bold text-xs text-blue-700 uppercase tracking-wide mb-2"><T id="p5_a_proj_phase2_title" /></h5>
+                            <p className="text-xs text-slate-600 mb-2"><T id="p5_a_proj_phase2_desc" multiline={true} /></p>
+                            <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded"><T id="p5_a_proj_step4" /></span>
+                              <i className="fas fa-arrow-right text-slate-300 mt-1"></i>
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded"><T id="p5_a_proj_step5" /></span>
+                              <i className="fas fa-arrow-right text-slate-300 mt-1"></i>
+                              <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded"><T id="p5_a_proj_step6" /></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <OptionalT id="p5_opt_a_0" />
+
+                      <div className="mt-8 border-t border-slate-100 pt-6">
+                        <h4 className="font-bold text-slate-800 text-sm mb-4"><i className="fas fa-layer-group text-slate-400 mr-2"></i><T id="p5_a_scen_title" /></h4>
+                        <p className="text-sm text-slate-600 mb-6 leading-relaxed"><T id="p5_a_scen_desc" multiline={true} /></p>
+
+                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                           <div className="bg-sky-50 border-2 border-sky-300 rounded-xl p-4 md:p-6 shadow-sm relative pt-8 mt-2">
+                              <span className="absolute -top-3 left-4 bg-sky-100 text-sky-800 font-bold px-3 py-1 rounded-lg text-xs border border-sky-300 shadow-sm"><T id="p5_a_scen_max" /></span>
+                              
+                              <div className="bg-blue-50 border-2 border-blue-400 rounded-xl p-4 md:p-6 shadow-sm relative pt-8 mt-2">
+                                 <span className="absolute -top-3 left-4 bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-lg text-xs border border-blue-400 shadow-sm"><T id="p5_a_scen_exp" /></span>
+                                 
+                                 <div className="bg-indigo-50 border-2 border-indigo-500 rounded-xl p-4 md:p-6 shadow-sm relative pt-8 mt-2">
+                                    <span className="absolute -top-3 left-4 bg-indigo-100 text-indigo-900 font-bold px-3 py-1 rounded-lg text-xs border border-indigo-500 shadow-sm"><T id="p5_a_scen_min" /></span>
+                                    
+                                    <div className="bg-emerald-500 text-white font-bold rounded-lg p-4 w-full text-center shadow-md flex items-center justify-center gap-3 mt-2 text-sm">
+                                       <i className="fas fa-lock text-lg"></i> <T id="p5_a_scen_exec" />
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                        <OptionalT id="p5_opt_a_0b" />
+                      </div>
+
+                    </div>
+                 </Accordion>
+
+                 <Accordion titleId="p5_a_sec1_title" icon="fa-chart-line" defaultOpen={true}>
+                    <div className="mt-4 space-y-4">
+                      <p className="text-sm text-slate-700 leading-relaxed bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-inner">
+                        <T id="p5_a_sec1_intro" multiline={true} />
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-red-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs mr-3 font-black shadow-sm">1</span><T id="p5_a_sec1_pt1_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_sec1_pt1_desc" multiline={true} /></p>
+                        </div>
+                        
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-green-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><span className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs mr-3 font-black shadow-sm">2</span><T id="p5_a_sec1_pt2_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_sec1_pt2_desc" multiline={true} /></p>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><span className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs mr-3 font-black shadow-sm">3</span><T id="p5_a_sec1_pt3_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_sec1_pt3_desc" multiline={true} /></p>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-purple-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs mr-3 font-black shadow-sm">4</span><T id="p5_a_sec1_pt4_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_sec1_pt4_desc" multiline={true} /></p>
+                        </div>
+                        
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden md:col-span-2 group hover:border-blue-300 transition-colors">
+                          <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                          <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center"><span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs mr-3 font-black shadow-sm">5</span><T id="p5_a_sec1_pt5_title" /></h4>
+                          <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_a_sec1_pt5_desc" multiline={true} /></p>
+                        </div>
+                      </div>
+                      <OptionalT id="p5_opt_a_1" />
+                    </div>
+                 </Accordion>
+
+                 <Accordion titleId="p5_a_visu_title" icon="fa-chart-area">
+                    <div className="mt-4 space-y-4">
+                      <p className="text-sm text-slate-700"><T id="p5_a_visu_desc" multiline={true}/></p>
+                      
+                      {/* Chart 18 Mois */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner w-full h-64">
+                        <canvas ref={chartRef18M}></canvas>
+                      </div>
+                      <p className="text-xs text-slate-500 text-center italic mt-2"><T id="p5_a_visu_chart_cap" /></p>
+                      
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner max-w-2xl mx-auto mt-6">
+                        <div className="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 flex flex-col justify-center items-center">
+                          {content['p5_vid_visu'] ? (
+                            <iframe src={formatVideoUrl(content['p5_vid_visu'])} className="w-full h-full border-0 absolute top-0 left-0" allowFullScreen={true} title="Demo Visualisation"></iframe>
+                          ) : (
+                            <div className="text-slate-500 flex flex-col items-center p-6 text-center">
+                              <i className="fas fa-video-slash text-3xl mb-3 opacity-50"></i>
+                              <span className="text-sm font-bold text-slate-400">Vidéo de démo non configurée</span>
+                              {isEditMode && <span className="text-xs mt-2 text-amber-500">Ajoutez l'URL ci-dessous.</span>}
+                            </div>
+                          )}
+                        </div>
+                        {isEditMode && (
+                          <div className="mt-4">
+                             <input type="text" value={content[`p5_vid_visu`] || ''} onChange={e => setContent({...content, [`p5_vid_visu`]: e.target.value})} placeholder="URL de la vidéo (Google Drive ou YouTube)" className="w-full p-2 text-xs border border-amber-300 rounded outline-none focus:border-amber-500 bg-amber-50" />
+                          </div>
+                        )}
+                      </div>
+                      
+                    </div>
+                 </Accordion>
+
+                 <Accordion titleId="p5_a_sec3_title" icon="fa-unlock-alt">
+                    <div className="mt-4 bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-sm text-emerald-900 mb-4 shadow-sm font-medium">
+                      <i className="fas fa-info-circle mr-2 text-emerald-600"></i>
+                      <T id="p5_a_sec3_general_desc" multiline={true} />
+                    </div>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-700">
+                      <li className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <strong className="text-emerald-700 block mb-1"><T id="p5_a_sec3_li1_title" /></strong> 
+                        <T id="p5_a_sec3_li1_desc" multiline={true}/>
+                      </li>
+                      <li className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <strong className="text-emerald-700 block mb-1"><T id="p5_a_sec3_li2_title" /></strong> 
+                        <T id="p5_a_sec3_li2_desc" multiline={true}/>
+                      </li>
+                      <li className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <strong className="text-emerald-700 block mb-1"><T id="p5_a_sec3_li3_title" /></strong> 
+                        <T id="p5_a_sec3_li3_desc" multiline={true}/>
+                      </li>
+                      <li className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <strong className="text-emerald-700 block mb-1"><T id="p5_a_sec3_li4_title" /></strong> 
+                        <T id="p5_a_sec3_li4_desc" multiline={true}/>
+                      </li>
+                    </ul>
+                    <OptionalT id="p5_opt_a_2" />
+                 </Accordion>
+
+                 <Accordion titleId="p5_a_sec4_title" icon="fa-sliders-h">
+                    <div className="space-y-3 mt-4">
+                      <div className="flex items-start bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded mr-3 text-xs">R1</span>
+                        <div>
+                          <strong className="text-sm block text-slate-800"><T id="p5_rule_r1_title" /></strong>
+                          <p className="text-sm text-slate-700 leading-relaxed"><T id="p5_a_sec4_r1" multiline={true}/></p>
+                        </div>
+                      </div>
+                      <div className="flex items-start bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded mr-3 text-xs">R2</span>
+                        <div>
+                          <strong className="text-sm block text-slate-800"><T id="p5_rule_r2_title" /></strong>
+                          <p className="text-sm text-slate-700 leading-relaxed"><T id="p5_a_sec4_r2" multiline={true}/></p>
+                        </div>
+                      </div>
+                      <div className="flex items-start bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded mr-3 text-xs">R3</span>
+                        <div>
+                          <strong className="text-sm block text-slate-800"><T id="p5_rule_r3_title" /></strong>
+                          <p className="text-sm text-slate-700 leading-relaxed"><T id="p5_a_sec4_r3" multiline={true}/></p>
+                        </div>
+                      </div>
+                    </div>
+                    <OptionalT id="p5_opt_a_3" />
+                 </Accordion>
+               </div>
+            )}
+
+            {/* PRATIQUE (Diagramme + Simulateur Temps Réel) */}
+            {subTab === 'B' && (
+               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in flex flex-col gap-12">
+                 
+                 {/* Zone Haute : Diagramme et Détails */}
+                 <div className="flex flex-col lg:flex-row gap-8 border-b border-slate-100 pb-12">
+                   {/* Colonne gauche : Le Diagramme interactif */}
+                   <div className="lg:w-1/3 lg:border-r border-slate-200 lg:pr-6">
+                      <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6 text-lg"><i className="fas fa-list-ol text-indigo-500 mr-2"></i> <T id="p5_b_diag_title" /></h3>
+                      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                        
+                        {stepsP5.map((item) => {
+                          const isActive = activeStep === item.id;
+                          const isVisited = clickedSteps.has(item.id);
+                          return (
+                            <div key={item.id} onClick={() => handleNodeClick(item.id)} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group cursor-pointer transition-all ${isActive ? 'scale-105' : 'hover:scale-105 opacity-80 hover:opacity-100'}`}>
+                              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${isActive ? `border-${item.color}-500 bg-${item.color}-100 text-${item.color}-700 shadow-md` : `border-white bg-${item.color}-100 text-${item.color}-500 shadow`} shrink-0 z-10 font-bold text-xs`}>
+                                {isVisited && !isActive ? <i className="fas fa-check"></i> : (item.id === 'val' ? <i className="fas fa-check-double"></i> : item.id)}
+                              </div>
+                              <div className={`w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-3 rounded-lg border ${isActive ? `border-${item.color}-400 bg-${item.color}-50 shadow-sm font-bold text-${item.color}-800` : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'} text-xs ml-4 transition-colors`}>
+                                 <T id={item.labelId} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+
+                   {/* Colonne droite : Détails de l'étape + Vidéo */}
+                   <div className="lg:w-2/3 flex flex-col space-y-4">
+                      <div className="space-y-4 animate-fade-in" key={activeStep}>
+                        <h3 className="text-xl font-bold text-slate-800 flex items-center border-b pb-3 border-slate-100">
+                          <i className={`fas ${stepsP5.find(s => s.id === activeStep)?.icon} text-${stepsP5.find(s => s.id === activeStep)?.color}-500 mr-3`}></i>
+                          <T id={`p5_step_${activeStep}_title`} />
+                        </h3>
+                        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+                          <T id={`p5_step_${activeStep}_desc`} multiline={true} />
+                        </p>
+                        <OptionalT id={`p5_opt_${activeStep}`} />
+                      </div>
+
+                      <div className="flex flex-col h-full space-y-4 mt-4">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                          <div className="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 flex flex-col justify-center items-center">
+                            {currentVideoUrl ? (
+                              <iframe src={currentVideoUrl} className="w-full h-full border-0 absolute top-0 left-0" allowFullScreen={true} title={`Vidéo Tutoriel Étape ${activeStep}`}></iframe>
+                            ) : (
+                              <div className="text-slate-500 flex flex-col items-center p-6 text-center">
+                                <i className="fas fa-video-slash text-3xl mb-3 opacity-50"></i><span className="text-sm font-bold text-slate-400">Aucune vidéo configurée</span><span className="text-xs mt-2">Activez le "Mode Édition" pour ajouter un lien.</span>
+                              </div>
+                            )}
+                          </div>
+                          {hasSecondVideo && !isEditMode && (
+                            <div className="flex gap-2 mt-4">
+                              <button onClick={() => setActiveVideoIndex(1)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°1</button>
+                              <button onClick={() => setActiveVideoIndex(2)} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${activeVideoIndex === 2 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}><i className="fas fa-play-circle mr-1.5"></i> Vidéo n°2</button>
+                            </div>
+                          )}
+                        </div>
+                        {isEditMode && (
+                          <div className="bg-amber-50 p-5 rounded-xl border-2 border-amber-300 shadow-sm animate-fade-in space-y-4 mt-4">
+                            <h4 className="font-bold text-amber-900 text-sm flex items-center"><i className="fas fa-cogs mr-2 text-amber-600"></i> Configuration des vidéos ({activeStep})</h4>
+                            <div>
+                              <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 1 :</label>
+                              <input type="text" value={content[`p5_step_${activeStep}_v1`] || ''} onChange={e => setContent({...content, [`p5_step_${activeStep}_v1`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                            </div>
+                            <div>
+                              <label className="text-xs font-bold text-amber-800 block mb-1">Lien de la Vidéo 2 (Optionnel) :</label>
+                              <input type="text" value={content[`p5_step_${activeStep}_v2`] || ''} onChange={e => setContent({...content, [`p5_step_${activeStep}_v2`]: e.target.value})} placeholder="Coller un lien Google Drive ou YouTube" className="w-full p-2.5 text-xs border border-amber-300 rounded-lg outline-none focus:border-amber-500 bg-white" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                   </div>
+                 </div>
+
+                 {/* Zone Basse : Le Simulateur Moteur en Temps Réel */}
+                 {isAllStepsClicked ? (
+                   <div className="animate-fade-in flex flex-col lg:flex-row gap-8">
+                      {/* Formulaires d'affectation */}
+                      <div className="lg:w-2/3 flex flex-col space-y-6">
+                         <div>
+                           <h3 className="font-bold text-slate-800 mb-2 text-xl"><i className="fas fa-laptop-code text-indigo-500 mr-2"></i> <T id="p5_b_rules_title" /></h3>
+                           <p className="text-sm text-slate-600"><T id="p5_b_rules_desc" /></p>
+                         </div>
+
+                         {/* Règle R1 */}
+                         <div className="bg-slate-50 p-5 rounded-xl border border-blue-200 shadow-sm relative overflow-hidden">
+                           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                           <div className="flex justify-between items-center mb-4 pl-2">
+                             <div>
+                               <h4 className="font-bold text-slate-800">Projet A - Règle <span className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs ml-1">R1 (%)</span></h4>
+                             </div>
+                             <div className="text-right">
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Besoin Restant</p>
+                               <span className={`font-bold px-2 py-1 rounded text-sm ${calcData.remNeedR1 === 0 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{calcData.remNeedR1.toFixed(1)} h</span>
+                             </div>
+                           </div>
+                           <div className="space-y-2 pl-2">
+                             {resList.map(r => (
+                               <div key={r.id} className="flex justify-between items-center bg-white p-2 rounded border border-slate-200">
+                                 <span className="text-sm font-medium text-slate-700 w-1/3">{r.name}</span>
+                                 <div className="flex items-center gap-2">
+                                   <input type="number" min="0" placeholder="0" value={valR1[r.id]} onChange={e => setValR1({...valR1, [r.id]: e.target.value})} className="w-20 p-1.5 text-sm border rounded outline-none focus:border-blue-500 text-right font-mono" />
+                                   <span className="text-slate-500 text-sm w-4">%</span>
+                                 </div>
+                                 <span className="text-xs text-blue-600 font-mono w-16 text-right">=&gt; {calcData.usedR1[r.id].toFixed(1)}h</span>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+
+                         {/* Règle R2 */}
+                         <div className="bg-slate-50 p-5 rounded-xl border border-purple-200 shadow-sm relative overflow-hidden">
+                           <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
+                           <div className="flex justify-between items-center mb-4 pl-2">
+                             <div>
+                               <h4 className="font-bold text-slate-800">Projet B - Règle <span className="bg-purple-500 text-white px-2 py-0.5 rounded text-xs ml-1">R2 (Prio)</span></h4>
+                             </div>
+                             <div className="text-right">
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Besoin Restant</p>
+                               <span className={`font-bold px-2 py-1 rounded text-sm ${calcData.remNeedR2 === 0 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{calcData.remNeedR2.toFixed(1)} h</span>
+                             </div>
+                           </div>
+                           <div className="space-y-2 pl-2">
+                             {resList.map(r => (
+                               <div key={r.id} className="flex justify-between items-center bg-white p-2 rounded border border-slate-200">
+                                 <span className="text-sm font-medium text-slate-700 w-1/3">{r.name}</span>
+                                 <div className="flex items-center gap-2">
+                                   <input type="number" min="1" placeholder="Ex: 1" value={valR2[r.id]} onChange={e => setValR2({...valR2, [r.id]: e.target.value})} className="w-20 p-1.5 text-sm border rounded outline-none focus:border-purple-500 text-center font-mono" />
+                                   <span className="text-slate-500 text-[10px] w-4 uppercase">Prio</span>
+                                 </div>
+                                 <span className="text-xs text-purple-600 font-mono w-16 text-right">=&gt; {calcData.usedR2[r.id].toFixed(1)}h</span>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+
+                         {/* Règle R3 */}
+                         <div className="bg-slate-50 p-5 rounded-xl border border-emerald-200 shadow-sm relative overflow-hidden">
+                           <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                           <div className="flex justify-between items-center mb-4 pl-2">
+                             <div>
+                               <h4 className="font-bold text-slate-800">Projet C - Règle <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs ml-1">R3 (Manu)</span></h4>
+                             </div>
+                             <div className="text-right">
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Besoin Restant</p>
+                               <span className={`font-bold px-2 py-1 rounded text-sm ${calcData.remNeedR3 === 0 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{calcData.remNeedR3.toFixed(1)} h</span>
+                             </div>
+                           </div>
+                           <div className="space-y-2 pl-2">
+                             {resList.map(r => (
+                               <div key={r.id} className="flex justify-between items-center bg-white p-2 rounded border border-slate-200">
+                                 <span className="text-sm font-medium text-slate-700 w-1/3">{r.name}</span>
+                                 <div className="flex items-center gap-2">
+                                   <input type="number" min="0" placeholder="0" value={valR3[r.id]} onChange={e => setValR3({...valR3, [r.id]: e.target.value})} className="w-20 p-1.5 text-sm border rounded outline-none focus:border-emerald-500 text-right font-mono" />
+                                   <span className="text-slate-500 text-sm w-4">h</span>
+                                 </div>
+                                 <span className="text-xs text-emerald-600 font-mono w-16 text-right">=&gt; {calcData.usedR3[r.id].toFixed(1)}h</span>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+
+                         {simError && (
+                          <div className={`p-4 rounded-xl text-sm font-medium flex items-start border shadow-md animate-fade-in ${
+                            simError.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                            simError.type === 'overload' ? 'bg-red-600 text-white border-red-700' :
+                            'bg-green-50 text-green-700 border-green-200'
+                          }`}>
+                            <i className={`fas mt-0.5 mr-3 text-lg ${simError.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}`}></i>
+                            <span>{simError.msg}</span>
+                          </div>
+                         )}
+
+                         <div className="flex justify-end pt-4">
+                            <button onClick={handleSaveTeam} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition-all flex items-center text-lg">
+                              Save the team <i className="fas fa-save ml-3"></i>
+                            </button>
+                         </div>
+                      </div>
+
+                      {/* Panneau Latéral (Monitoring & Graph) */}
+                      <div className="lg:w-1/3 flex flex-col space-y-4">
+                         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm sticky top-4">
+                            <h4 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2"><i className="fas fa-desktop text-blue-500 mr-2"></i> État des Affectations</h4>
+                            
+                            {/* Jauges */}
+                            <div className="space-y-4 mb-6">
+                              {resList.map(r => {
+                                const totalUsed = calcData.usedR1[r.id] + calcData.usedR2[r.id] + calcData.usedR3[r.id];
+                                const pctUsed = Math.min((totalUsed / r.capa) * 100, 100);
+                                return (
+                                  <div key={r.id}>
+                                    <div className="flex justify-between items-end mb-1">
+                                      <div><span className="text-xs font-bold text-slate-700">{r.name}</span> <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">{r.job}</span></div>
+                                      <span className="text-[10px] font-mono text-slate-500">{totalUsed.toFixed(0)} / {r.capa}h</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                      <div className={`h-full transition-all duration-300 ${pctUsed === 100 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{width: `${pctUsed}%`}}></div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+
+                            {/* Graphique Temps Réel */}
+                            <div className="w-full h-48 relative border border-slate-200 rounded-lg p-2 bg-slate-50">
+                               <canvas ref={chartRefRealTime}></canvas>
+                            </div>
+                            <p className="text-[10px] text-center text-slate-400 mt-2 italic">Mise à jour en temps réel des règles en cascade.</p>
+                         </div>
+                      </div>
+
+                   </div>
+                 ) : (
+                   <div className="mt-4 pt-8 border-t border-slate-200 text-center text-slate-500 bg-slate-50 p-6 rounded-xl">
+                      <i className="fas fa-lock text-3xl mb-3 opacity-50"></i>
+                      <p className="font-bold text-sm"><T id="p5_b_sim_locked" /></p>
+                   </div>
+                 )}
+
+               </div>
+            )}
+
+            {/* CONCLUSION */}
+            {subTab === 'C' && (
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in text-center py-12">
+                <i className="fas fa-flag-checkered text-6xl text-blue-500 mb-6"></i>
+                <h3 className="text-2xl font-bold text-slate-800 mb-4"><T id="p5_c_title" /></h3>
+                
+                <OptionalT id="p5_opt_c_1" />
+
+                <p className="text-slate-600 mb-8 max-w-lg mx-auto">Félicitations {userSession?.email || ''}, <T id="p5_c_desc" multiline={true} /></p>
+                
+                <div className="max-w-4xl mx-auto bg-slate-50 p-6 rounded-xl border border-slate-200 mb-10 text-left">
+                   <h4 className="font-bold text-slate-800 text-lg mb-4 text-center"><T id="p5_c_kt_title" /></h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <h5 className="font-bold text-blue-700 text-sm mb-1"><i className="fas fa-users-cog mr-2"></i><T id="p5_c_kt1_title" /></h5>
+                        <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_c_kt1_desc" multiline={true}/></p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <h5 className="font-bold text-emerald-700 text-sm mb-1"><i className="fas fa-exchange-alt mr-2"></i><T id="p5_c_kt2_title" /></h5>
+                        <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_c_kt2_desc" multiline={true}/></p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <h5 className="font-bold text-red-700 text-sm mb-1"><i className="fas fa-shield-alt mr-2"></i><T id="p5_c_kt3_title" /></h5>
+                        <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_c_kt3_desc" multiline={true}/></p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <h5 className="font-bold text-indigo-700 text-sm mb-1"><i className="fas fa-check-double mr-2"></i><T id="p5_c_kt4_title" /></h5>
+                        <p className="text-xs text-slate-600 leading-relaxed"><T id="p5_c_kt4_desc" multiline={true}/></p>
+                      </div>
+                   </div>
+                </div>
+
+                {!submitted ? (
+                  <div className="max-w-md mx-auto bg-white p-6 rounded-xl border border-slate-200 text-left shadow-lg">
+                    <h4 className="font-bold text-slate-800 mb-4 text-center"><T id="p5_c_fb_title" /></h4>
+                    <div className="flex justify-center gap-2 mb-6">
+                      {[1,2,3,4,5].map(star => (
+                        <button key={star} onClick={() => setRating(star)} className={`text-3xl transition-colors ${rating >= star ? 'text-amber-400 drop-shadow-md' : 'text-slate-200 hover:text-amber-200'}`}>
+                          <i className="fas fa-star"></i>
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      value={feedback} 
+                      onChange={(e) => setFeedback(e.target.value)} 
+                      placeholder={content['p5_c_fb_ph'] || "[p5_c_fb_ph]"}
+                      className="w-full p-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-500 mb-4 min-h-[100px] bg-slate-50"
+                    />
+                    <button onClick={handleSubmitFeedback} disabled={!rating} className={`w-full font-bold py-3 rounded-xl transition-all shadow-sm ${rating ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                      <T id="p5_c_fb_btn" /> <i className="fas fa-paper-plane ml-2"></i>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 text-green-700 p-6 rounded-xl border border-green-200 max-w-md mx-auto animate-fade-in shadow-inner">
+                    <i className="fas fa-check-circle text-4xl mb-3 text-green-500"></i>
+                    <p className="font-bold"><T id="p5_c_fb_thx" /></p>
+                    <p className="text-sm mt-1"><T id="p5_c_fb_thx_desc" /></p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // MODULE ACCUEIL & MAIN APP
+    // ==========================================
+    function HomeModule({ onNext, userSession, setUserSession, gainXp }) {
+      const [activeTab, setActiveTab] = useState('prog');
+      const [emailInput, setEmailInput] = useState('');
+      const [emailError, setEmailError] = useState('');
+      const [isLoadingProgress, setIsLoadingProgress] = useState(false);
+      const { isDevMode, setCompletedTasks } = useContext(window.ContentContext);
+
+      useEffect(() => {
+        if (isDevMode && !emailInput) setEmailInput('dev@optima.com');
+      }, [isDevMode, emailInput]);
+
+      const handleRegister = (e) => {
+        e.preventDefault();
+        if (!emailInput.includes('@') || emailInput.length < 5) {
+          setEmailError("Veuillez saisir une adresse e-mail valide.");
+          return;
+        }
+        setEmailError('');
+        setIsLoadingProgress(true);
+
+        if (window.google && google.script) {
+          google.script.run
+            .withFailureHandler(err => {
+               console.warn("getUserProgress manquant. Initialisation vide.");
+               setCompletedTasks({});
+               const now = new Date();
+               const formattedDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+               setUserSession({ email: emailInput, timestamp: formattedDate });
+               setIsLoadingProgress(false);
+            })
+            .withSuccessHandler((progressData) => {
+               setCompletedTasks(progressData || {});
+               const now = new Date();
+               const formattedDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+               setUserSession({ email: emailInput, timestamp: formattedDate });
+               setIsLoadingProgress(false);
+          }).getUserProgress(emailInput);
+        } else {
+            // Fallback for non-Apps Script environment
+            setTimeout(() => {
+               setCompletedTasks({});
+               const now = new Date();
+               const formattedDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+               setUserSession({ email: emailInput, timestamp: formattedDate });
+               setIsLoadingProgress(false);
+            }, 500);
+        }
+      };
+
+      const tabs = [
+        { id: 'prog', icon: 'fa-map-signs', titleId: 'home_prog_title', descId: 'home_prog_desc' },
+        { id: 'obj', icon: 'fa-bullseye', titleId: 'home_obj_title', descId: 'home_obj_desc' },
+        { id: 'agenda', icon: 'fa-list-ol', titleId: 'home_agenda_title', descId: 'home_agenda_desc' },
+        { id: 'howto', icon: 'fa-gamepad', titleId: 'home_howto_title', descId: 'home_howto_desc' }
+      ];
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-6">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0"><i className="fas fa-graduation-cap"></i></div>
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-800"><T id="home_title" /></h2>
+              <p className="text-slate-600 mt-1"><T id="home_welcome" multiline={true} /></p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+              <div className="bg-slate-50 border-b border-slate-200 flex p-2 gap-2 overflow-x-auto">
+                {tabs.map(tab => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700'}`}>
+                    <i className={`fas ${tab.icon} mr-2 ${activeTab === tab.id ? 'text-blue-500' : ''}`}></i> <T id={tab.titleId} />
+                  </button>
+                ))}
+              </div>
+              <div className="p-8 flex-grow bg-white animate-fade-in min-h-[250px]">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 flex items-center">
+                  <i className={`fas ${tabs.find(t=>t.id===activeTab).icon} text-blue-500 mr-2`}></i><T id={tabs.find(t=>t.id===activeTab).titleId} />
+                </h3>
+                <div className="text-sm text-slate-600 leading-relaxed space-y-3"><T id={tabs.find(t=>t.id===activeTab).descId} multiline={true} /></div>
+                
+                <OptionalT id={`home_opt_${activeTab}`} />
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-400"></div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center"><i className="fas fa-id-badge text-blue-500 mr-2"></i> <T id="home_email_title" /></h3>
+              <p className="text-xs text-slate-600 mb-6 leading-relaxed"><T id="home_email_desc" multiline={true} /></p>
+
+              {!userSession ? (
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div>
+                    <div className="relative">
+                      <i className="fas fa-envelope absolute left-3 top-3.5 text-slate-400"></i>
+                      <input type="email" placeholder="votre.nom@entreprise.com" value={emailInput} disabled={isLoadingProgress} onChange={(e) => setEmailInput(e.target.value)} className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition-all ${emailError ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}`} />
+                    </div>
+                    {emailError && <p className="text-red-500 text-[10px] mt-1.5 font-bold"><i className="fas fa-exclamation-circle mr-1"></i>{emailError}</p>}
+                  </div>
+                  <button type="submit" disabled={isLoadingProgress} className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-75 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl shadow-md transition-colors text-sm flex justify-center items-center">
+                    {isLoadingProgress ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-lock-open mr-2"></i>} 
+                    {isLoadingProgress ? "Chargement des données..." : "Débloquer la formation"}
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 animate-fade-in text-center shadow-inner">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl"><i className="fas fa-check"></i></div>
+                  <h4 className="font-bold text-emerald-800 text-sm mb-1">Session validée</h4>
+                  <p className="text-[10px] text-emerald-600 font-mono mb-2">{userSession.email}</p>
+                </div>
+              )}
+
+              {userSession && (
+                <div className="mt-6 animate-fade-in">
+                  <button onClick={onNext} className="btn-primary w-full shadow-lg py-3.5 text-base bg-blue-600 hover:bg-blue-700">Démarrer la Partie 1 <i className="fas fa-arrow-right ml-2"></i></button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [currentPage, setCurrentPage] = useState('home');
+      const [userSession, setUserSession] = useState(null); 
+      const [content, setContent] = useState({});
+      const [completedTasks, setCompletedTasks] = useState({});
+      const [isLoading, setIsLoading] = useState(true);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+      const [isEditMode, setIsEditMode] = useState(false);
+      const [isDevMode, setIsDevMode] = useState(false);
+      const [isSaving, setIsSaving] = useState(false);
+      
+      const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+      const xpMap = {
+        nav_part1: 100, nav_part2: 100, nav_part3: 100, nav_part4: 100, nav_part5: 100,
+        puzzle_p1: 50, ex_p2_ref: 50, ex_p2_algo: 50, matrix_p3: 50, assign_p5: 50,
+        feedback: 50
+      };
+      const maxXP = 1260; 
+      
+      const xp = useMemo(() => {
+        let total = 0;
+        Object.keys(completedTasks).forEach(k => {
+          if (xpMap[k]) total += xpMap[k];
+          else if (k.startsWith('diag3_') || k.startsWith('diag4_') || k.startsWith('diag5_')) total += 20;
+        });
+        return Math.min(maxXP, total);
+      }, [completedTasks]);
+
+      const loadData = (isManualRefresh = false) => {
+        if (isManualRefresh) setIsRefreshing(true);
+        
+        if (typeof google !== 'undefined' && google.script) {
+          let dataLoaded = false;
+          let codesLoaded = false;
+          let buLoaded = false;
+
+          const checkDone = () => {
+            if (dataLoaded && codesLoaded && buLoaded) {
+              setIsLoading(false);
+              if (isManualRefresh) setIsRefreshing(false);
+            }
+          };
+
+          google.script.run
+            .withFailureHandler(err => { console.error("getContent error", err); dataLoaded = true; checkDone(); })
+            .withSuccessHandler(data => { setContent(data || {}); window.reactContentContext = data || {}; dataLoaded = true; checkDone(); })
+            .getContent();
+
+          google.script.run
+            .withFailureHandler(err => { console.error("getJobCodes error", err); codesLoaded = true; checkDone(); })
+            .withSuccessHandler(codes => { window.JOB_CODES = codes || []; codesLoaded = true; checkDone(); })
+            .getJobCodes();
+
+          if (google.script.run.getBUData) {
+            google.script.run
+              .withFailureHandler(err => { 
+                console.warn("getBUData manquant dans Code.gs."); 
+                buLoaded = true; checkDone(); 
+              })
+              .withSuccessHandler(buData => { window.BU_DATA = buData || []; buLoaded = true; checkDone(); })
+              .getBUData();
+          } else {
+            console.warn("getBUData manquant dans Code.gs."); 
+            buLoaded = true; checkDone(); 
+          }
+        } else {
+           // Fallback loading for non-Apps Script environment
+           setTimeout(() => {
+             setContent({
+                'app_title': 'OPTIMA S&OP',
+                'app_subtitle': 'Parcours Manager',
+                'nav_home': 'Accueil & Guide',
+                'nav_training_plan': 'Plan de Formation',
+                'nav_p1': 'P1: Le Cycle S&OP',
+                'nav_p2': 'P2: La Capacité',
+                'nav_p3': 'P3: Gestion de Ressource',
+                'nav_p4': 'P4: Gestion Avancée',
+                'nav_p5': 'P5: Affectation de Charge',
+                'home_title': 'Formation OPTIMA S&OP',
+                'home_welcome': 'Bienvenue dans le nouveau parcours de formation pour les Managers. Ce programme a été segmenté en 5 parties pour couvrir l\'intégralité de vos responsabilités dans OPTIMA.',
+                'home_email_title': 'Identification requise',
+                'home_email_desc': 'Entrez votre email pour commencer et suivre votre progression. Si vous vous êtes déjà connecté, votre avancement sera restauré.',
+                'home_prog_title': 'Programme',
+                'home_prog_desc': 'Découvrez les étapes du programme de formation.\n- Le Cycle S&OP\n- La Capacité\n- Gestion des ressources\n- Avancé\n- Affectation',
+                'home_obj_title': 'Objectifs',
+                'home_obj_desc': 'Apprenez à gérer les ressources de votre périmètre et maîtriser les flux d\'affectation S&OP.',
+                'home_agenda_title': 'Agenda',
+                'home_agenda_desc': '5 modules de 10 à 15 minutes chacun, interactifs et gamifiés.',
+                'home_howto_title': 'Comment jouer',
+                'home_howto_desc': 'Suivez les instructions à l\'écran, interagissez avec les schémas et regardez les vidéos explicatives.'
+             });
+             setIsLoading(false);
+             if (isManualRefresh) setIsRefreshing(false);
+           }, 1000);
+        }
+      };
+
+      useEffect(() => {
+        loadData(false);
+      }, []);
+
+      const handleSave = () => {
+        setIsSaving(true);
+        if (typeof google !== 'undefined' && google.script) {
+            google.script.run
+              .withFailureHandler(err => { console.error("saveContent error", err); setIsSaving(false); setIsEditMode(false); })
+              .withSuccessHandler(() => {
+                setIsSaving(false);
+                setIsEditMode(false);
+                window.reactContentContext = content;
+              }).saveContent(content);
+        } else {
+            setIsSaving(false);
+            setIsEditMode(false);
+        }
+      };
+
+      const gainXp = (key) => {
+        if (key && !completedTasks[key]) {
+           const now = new Date();
+           const formattedDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+           setCompletedTasks(prev => ({...prev, [key]: formattedDate}));
+           
+           if (typeof google !== 'undefined' && google.script && userSession && google.script.run.logUserProgress) {
+              google.script.run
+                .withFailureHandler(err => console.error("logUserProgress error", err))
+                .logUserProgress(userSession.email, key, formattedDate);
+           }
+        }
+      };
+
+      const handleNavClick = (pageName) => {
+        if (pageName !== currentPage) {
+             setCurrentPage(pageName);
+             gainXp('nav_' + pageName); 
+        }
+      };
+
+      const handleResetProgress = () => {
+        if (!userSession) return;
+        if (window.confirm("Êtes-vous sûr de vouloir réinitialiser toute votre progression ? Vous retomberez à 0 XP.")) {
+          if (typeof google !== 'undefined' && google.script && google.script.run.resetUserProgress) {
+             google.script.run
+               .withFailureHandler(err => {
+                 console.warn("resetUserProgress manquant. Reset local uniquement.");
+                 setCompletedTasks({});
+                 setCurrentPage('home');
+               })
+               .withSuccessHandler(() => {
+                 setCompletedTasks({});
+                 setCurrentPage('home');
+               }).resetUserProgress(userSession.email);
+          } else {
+             setCompletedTasks({});
+             setCurrentPage('home');
+          }
+        }
+      };
+
+      const getHelpText = () => {
+        if (!userSession) return "Saisissez votre e-mail pour débloquer la formation et passez à la Partie 1.";
+        if (currentPage === 'home') return "Démarrez la Partie 1 en cliquant sur le bouton en bas de la page.";
+        if (currentPage === 'part1') return !completedTasks['puzzle_p1'] ? "Reconstituez l'ordre chronologique du cycle S&OP (Jeu en bas de page) pour débloquer la suite." : "Section validée ! Vous pouvez passer à la Partie 2.";
+        if (currentPage === 'part2') {
+          const isRefDone = !!completedTasks['ex_p2_ref'];
+          const isAlgoDone = !!completedTasks['ex_p2_algo'];
+          if (!isRefDone && !isAlgoDone) return "Pour débloquer la suite, vous devez valider : L'exercice de recherche (Onglet A) et L'exercice de calcul (Onglet B).";
+          if (!isRefDone) return "Pour débloquer la suite, vous devez valider : L'exercice de recherche (Onglet A).";
+          if (!isAlgoDone) return "Pour débloquer la suite, vous devez valider : L'exercice de calcul (Onglet B).";
+          return "Tous les exercices sont validés ! Vous pouvez passer à la Partie 3.";
+        }
+        if (currentPage === 'part3') {
+          const activeStepsIds = ['1', '2', '3', '3b', '4', 'ongoing', '5', '7', '8'];
+          const clickedStepsCount = activeStepsIds.filter(id => completedTasks[`diag3_${id}`]).length;
+          if (clickedStepsCount < 9) return `Cliquez sur toutes les étapes du diagramme (${clickedStepsCount}/9) pour débloquer le test final.`;
+          if (!completedTasks['matrix_p3']) return "Diagramme consulté. Validez le test (Onglet 2) pour continuer !";
+          return "Diagramme et test validés ! Vous pouvez passer à la Partie 4.";
+        }
+        if (currentPage === 'part4') {
+          const activeStepsIdsP4 = ['indispo', 'complex_mod', 'pret_req', 'pret_acc', 'pret_end', 'trans_req', 'trans_acc', 'trans_eff'];
+          const clickedStepsCount = activeStepsIdsP4.filter(id => completedTasks[`diag4_${id}`]).length;
+          if (clickedStepsCount < 8) return `Cliquez sur toutes les actions spécifiques, de prêt ou de transfert (${clickedStepsCount}/8) pour terminer.`;
+          return "Diagramme consulté ! Vous pouvez passer à la Partie 5.";
+        }
+        if (currentPage === 'part5') {
+          const clickedStepsCountP5 = ['L1','L2','L3','L4','L5','val'].filter(id => completedTasks[`diag5_${id}`]).length;
+          if (clickedStepsCountP5 < 6) return `Cliquez sur chaque étape du diagramme interactif (Onglet Pratique) pour découvrir la procédure et débloquer le simulateur final (${clickedStepsCountP5}/6).`;
+          return !completedTasks['assign_p5'] ? "Sauvegardez l'équipe ('Save the team') dans le simulateur en respectant exactement toutes les règles pour terminer." : "Formation terminée ! Laissez-nous votre avis dans l'onglet Conclusion.";
+        }
+        return "";
+      };
+
+      if (isLoading) {
+        return (
+          <div className="flex h-screen items-center justify-center bg-slate-50 flex-col">
+            <i className="fas fa-circle-notch fa-spin text-4xl text-blue-600 mb-4"></i>
+            <p className="text-slate-500 font-medium">Chargement du contenu et des référentiels...</p>
+          </div>
+        );
+      }
+
+      // Verrouillage du Menu Latéral (Strict)
+      const isLocked = !userSession;
+      const isPart1Done = !!completedTasks['puzzle_p1'];
+      const isPart2Done = !!completedTasks['ex_p2_ref'] && !!completedTasks['ex_p2_algo'];
+      const isPart3Done = !!completedTasks['matrix_p3'] && (new Set(Object.keys(completedTasks).filter(k => k.startsWith('diag3_'))).size === 9);
+      
+      const activeStepsIdsP4 = ['indispo', 'complex_mod', 'pret_req', 'pret_acc', 'pret_end', 'trans_req', 'trans_acc', 'trans_eff'];
+      const isPart4Done = activeStepsIdsP4.every(id => completedTasks[`diag4_${id}`]);
+
+      return (
+        <window.ContentContext.Provider value={{ content, setContent, isEditMode, isDevMode, gainXp, completedTasks, setCompletedTasks }}>
+          <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+
+            {/* Fenêtre Modale d'Aide (Popup) */}
+            {isHelpOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsHelpOpen(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="bg-amber-400 p-4 flex items-center justify-between">
+                    <h3 className="font-bold text-amber-950 flex items-center text-lg"><i className="fas fa-life-ring mr-2"></i> Objectif en cours</h3>
+                    <button onClick={() => setIsHelpOpen(false)} className="text-amber-900 hover:bg-amber-500 w-8 h-8 rounded-full flex items-center justify-center transition-colors"><i className="fas fa-times"></i></button>
+                  </div>
+                  <div className="p-8 text-slate-700 font-medium text-center leading-relaxed">
+                    {getHelpText()}
+                  </div>
+                  <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-center">
+                    <button onClick={() => setIsHelpOpen(false)} className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all shadow-sm">J'ai compris</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Barre de boutons haut-droite */}
+            <div className="absolute top-4 right-4 z-50 flex items-center space-x-3 bg-white p-2 rounded-lg shadow-lg border border-slate-200">
+              <button onClick={() => loadData(true)} disabled={isRefreshing} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm flex items-center transition-colors border border-slate-300 disabled:opacity-50" title="Recharger les données">
+                <i className={`fas fa-sync-alt mr-2 ${isRefreshing ? 'fa-spin text-blue-500' : ''}`}></i> {isRefreshing ? 'Mise à jour...' : 'Mettre à jour'}
+              </button>
+              
+              <button onClick={handleResetProgress} disabled={!userSession} className={`px-3 py-1.5 rounded-md text-xs font-bold shadow-sm flex items-center transition-colors border ${userSession ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200' : 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'}`} title="Réinitialiser toute la progression (0 XP)">
+                <i className="fas fa-trash-restore mr-2"></i> Réinitialiser
+              </button>
+
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+              <label className="flex items-center cursor-pointer text-sm font-bold text-slate-700">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={isEditMode} onChange={() => setIsEditMode(!isEditMode)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isEditMode ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isEditMode ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+                <span className="ml-3 mr-2"><i className="fas fa-pen text-amber-500 mr-1"></i> Mode Édition</span>
+              </label>
+
+              <label className="flex items-center cursor-pointer text-sm font-bold text-slate-700 border-l border-slate-200 pl-4 ml-2">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={isDevMode} onChange={() => setIsDevMode(!isDevMode)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isDevMode ? 'bg-purple-500' : 'bg-slate-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isDevMode ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+                <span className="ml-3 mr-2"><i className="fas fa-magic text-purple-500 mr-1"></i> Mode Dév</span>
+              </label>
+
+              {isEditMode && (
+                <button onClick={handleSave} disabled={isSaving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm flex items-center transition-colors">
+                  {isSaving ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-save mr-2"></i> Sauvegarder</>}
+                </button>
+              )}
+            </div>
+
+            <nav className="w-80 bg-[#0c1e36] text-white flex flex-col shadow-2xl z-20 shrink-0">
+              <div className="p-6 bg-[#081524] flex flex-col items-center border-b border-[#132c4a]">
+                <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-inner"><i className="fas fa-wind text-blue-500 text-2xl"></i></div>
+                <h1 className="text-lg font-extrabold tracking-wider text-blue-100"><T id="app_title" /></h1>
+                <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold"><T id="app_subtitle" /></p>
+              </div>
+              <div className="flex-1 overflow-y-auto py-4">
+                <NavItem icon="fa-home" labelId="nav_home" isActive={currentPage === 'home'} onClick={() => setCurrentPage('home')} locked={false} />
+                <div className="px-6 py-2 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-[#132c4a] pt-4"><T id="nav_training_plan" /></div>
+                <NavItem icon="fa-sync-alt" labelId="nav_p1" isActive={currentPage === 'part1'} onClick={() => handleNavClick('part1')} locked={isLocked} />
+                <NavItem icon="fa-database" labelId="nav_p2" isActive={currentPage === 'part2'} onClick={() => handleNavClick('part2')} locked={isLocked || !isPart1Done} />
+                <NavItem icon="fa-user-cog" labelId="nav_p3" isActive={currentPage === 'part3'} onClick={() => handleNavClick('part3')} locked={isLocked || !isPart2Done} />
+                <NavItem icon="fa-level-up-alt" labelId="nav_p4" isActive={currentPage === 'part4'} onClick={() => handleNavClick('part4')} locked={isLocked || !isPart3Done} />
+                <NavItem icon="fa-tasks" labelId="nav_p5" isActive={currentPage === 'part5'} onClick={() => handleNavClick('part5')} locked={isLocked || !isPart4Done} />
+              </div>
+
+              <div className="p-5 bg-[#081524] border-t border-[#132c4a] flex flex-col gap-2 shrink-0 z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.2)]">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-1">Aide & Outils</div>
+                
+                <button onClick={() => setIsHelpOpen(true)} className="w-full flex items-center px-4 py-3 text-xs font-bold text-amber-400 hover:bg-amber-400/10 hover:text-amber-300 rounded-xl transition-all border border-transparent hover:border-amber-400/30 text-left shadow-sm">
+                  <i className="fas fa-life-ring w-6 text-center mr-3 text-lg"></i> 
+                  <span className="flex-1 leading-tight">Je suis perdu<br/><span className="text-[9px] font-normal text-amber-400/70">Voir l'objectif actuel</span></span>
+                </button>
+
+                <a href="https://notebooklm.google.com/notebook/87cccdd9-5317-478e-bcd6-b85d53510cd2" target="_blank" rel="noopener noreferrer" className="w-full flex items-center px-4 py-3 text-xs font-bold text-blue-400 hover:bg-blue-400/10 hover:text-blue-300 rounded-xl transition-all border border-transparent hover:border-blue-400/30 text-left group shadow-sm">
+                  <i className="fas fa-robot w-6 text-center mr-3 text-lg group-hover:animate-pulse"></i> 
+                  <span className="flex-1 leading-tight">Assistant IA<br/><span className="text-[9px] font-normal text-blue-400/70">Poser une question au bot</span></span>
+                </a>
+
+                <a href="https://gmtstore-pprd.apps.airliquide.com/webapp/app0053345_sop//dashboard" target="_blank" rel="noopener noreferrer" title="C'est une copie de l'application, vous pouvez y faire ce que vous voulez, amusez-vous!" className="w-full flex items-center px-4 py-3 text-xs font-bold text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300 rounded-xl transition-all border border-transparent hover:border-emerald-400/30 text-left group shadow-sm">
+                  <i className="fas fa-flask w-6 text-center mr-3 text-lg"></i> 
+                  <span className="flex-1 leading-tight">Préproduction<br/><span className="text-[9px] font-normal text-emerald-400/70">Environnement Bac à sable</span></span>
+                </a>
+              </div>
+            </nav>
+
+            <div className="flex flex-col flex-1 overflow-hidden relative">
+              {userSession && (
+                <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-8 shrink-0 z-10 animate-fade-in shadow-sm">
+                   <div className="flex items-center gap-4 flex-1 max-w-xl">
+                     <div className="flex items-center gap-2"><i className="fas fa-trophy text-amber-500"></i><span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Progression</span></div>
+                     <div className="flex-1 h-3.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-700 ease-out relative" style={{ width: `${Math.min((xp / maxXP) * 100, 100)}%` }}>
+                          <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                        </div>
+                     </div>
+                     <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">{xp} XP</span>
+                   </div>
+                   <div className="flex items-center gap-3 ml-8 border-l border-slate-200 pl-8">
+                     <div className="text-right hidden md:block">
+                       <div className="text-sm font-bold text-slate-800">{userSession.email}</div>
+                       <div className="text-[10px] text-slate-500 font-medium">Session Manager S&OP</div>
+                     </div>
+                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-lg border-2 border-white shadow-md">
+                       {userSession.email.charAt(0).toUpperCase()}
+                     </div>
+                   </div>
+                </header>
+              )}
+
+              <main className={`flex-1 overflow-y-auto bg-slate-50 relative px-8 pb-8 transition-all ${isEditMode ? 'border-4 border-amber-300' : ''}`}>
+                <div className="max-w-6xl mx-auto pt-8">
+                  {currentPage === 'home' && <HomeModule onNext={() => handleNavClick('part1')} userSession={userSession} setUserSession={setUserSession} gainXp={gainXp} />}
+                  {currentPage === 'part1' && <Part1_CycleSOP onNext={() => handleNavClick('part2')} />}
+                  {currentPage === 'part2' && <Part2_Capacity onNext={() => handleNavClick('part3')} />}
+                  {currentPage === 'part3' && <Part3_ResourceMgmt onNext={() => handleNavClick('part4')} />}
+                  {currentPage === 'part4' && <Part4_Advanced onNext={() => handleNavClick('part5')} />}
+                  {currentPage === 'part5' && <Part5_Workload onNext={() => {}} userSession={userSession} />}
+                </div>
+              </main>
+            </div>
+          </div>
+        </window.ContentContext.Provider>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formation OPTIMA - Project Manager & Sales</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(10px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    .animate-fade-in { 
+      animation: fadeIn 0.4s ease-out forwards; 
+    }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .btn-primary { 
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 0.65rem 1.5rem; 
+      background-color: #065f46; 
+      color: white; 
+      font-weight: 700; 
+      font-size: 0.875rem; 
+      border-radius: 0.5rem; 
+      transition: all 0.2s; 
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
+      cursor: pointer; 
+    }
+    
+    .btn-primary:hover:not(:disabled) { 
+      background-color: #047857; 
+      transform: translateY(-1px); 
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .accordion-content {
+      transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin 0.3s ease-in-out;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .accordion-content.open {
+      max-height: 2000px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans overflow-hidden">
+  
+  <div id="root"></div>
+
+  <!-- VARIABLES GLOBALES & CONTEXTE -->
+  <script type="text/babel">
+    window.ContentContext = React.createContext();
+  </script>
+
+  <!-- COMPOSANTS REACT MODULAIRES INTÉGRÉS -->
+  <script type="text/babel">
+    const { useState, useEffect, useContext, useMemo, useRef } = React;
+
+    // --- UTILS & ROUTEUR HYBRIDE ---
+    function navigateToPage(pageName) {
+      const isGAS = typeof google !== 'undefined' && google.script && google.script.host;
+      if (isGAS) {
+        google.script.run.withSuccessHandler(function(url) {
+          window.open(url + '?page=' + pageName, '_top');
+        }).getScriptUrl();
+      } else {
+        window.location.href = pageName + '.html';
+      }
+    }
+
+    // Composant Texte CMS réutilisable
+    function T({ id, multiline = false }) {
+      const { content, setContent, isEditMode } = useContext(window.ContentContext);
+      const text = content[id] !== undefined ? content[id] : `[${id}]`;
+      const inputRef = useRef(null);
+      
+      if (!isEditMode) {
+        return <span dangerouslySetInnerHTML={{__html: text.replace(/\n/g, '<br/>')}} />;
+      }
+
+      const insertHTML = (tagOpen, tagClose) => {
+        const el = inputRef.current;
+        if (!el) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const val = el.value;
+        const selectedText = val.substring(start, end);
+        const replacement = tagOpen + (selectedText || "Texte") + tagClose;
+        const newVal = val.substring(0, start) + replacement + val.substring(end);
+        
+        setContent({...content, [id]: newVal});
+        
+        setTimeout(() => {
+          el.focus();
+          el.setSelectionRange(start + tagOpen.length, start + tagOpen.length + (selectedText || "Texte").length);
+        }, 0);
+      };
+      
+      return (
+        <div className="w-full flex flex-col my-1 text-slate-800 font-sans">
+          <div className="flex flex-wrap gap-1 bg-amber-100 p-1 border-x-2 border-t-2 border-amber-400 rounded-t-lg items-center text-[10px] sm:text-xs">
+            <button type="button" onClick={() => insertHTML('<strong>', '</strong>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded font-bold border border-amber-300 shadow-sm" title="Gras">B</button>
+            <button type="button" onClick={() => insertHTML('<em>', '</em>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded italic border border-amber-300 shadow-sm" title="Italique">I</button>
+            <button type="button" onClick={() => insertHTML('<u>', '</u>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded underline border border-amber-300 shadow-sm" title="Sous-ligner">U</button>
+            <span className="text-amber-300 mx-1">|</span>
+            <button type="button" onClick={() => insertHTML('<span class="text-blue-600">', '</span>')} className="px-1.5 py-0.5 bg-blue-100 text-blue-600 font-bold hover:bg-blue-200 rounded border border-blue-300 shadow-sm" title="Bleu">Bleu</button>
+            <button type="button" onClick={() => insertHTML('<span class="text-red-600">', '</span>')} className="px-1.5 py-0.5 bg-red-100 text-red-600 font-bold hover:bg-red-200 rounded border border-red-300 shadow-sm" title="Rouge">Rouge</button>
+            <button type="button" onClick={() => insertHTML('<span class="text-emerald-600">', '</span>')} className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 font-bold hover:bg-emerald-200 rounded border border-emerald-300 shadow-sm" title="Vert">Vert</button>
+            <span className="text-amber-300 mx-1">|</span>
+            {multiline && (
+              <>
+                <button type="button" onClick={() => insertHTML('<ul class="list-disc pl-5 my-2"><li>', '</li><li>Élément 2</li></ul>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm flex items-center gap-1" title="Liste à puces">
+                  <i className="fas fa-list-ul text-[9px]"></i> Liste
+                </button>
+                <button type="button" onClick={() => insertHTML('<li class="mt-1">', '</li>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm" title="Ajouter une puce">+ Puce</button>
+                <span className="text-amber-300 mx-1">|</span>
+              </>
+            )}
+            <button type="button" onClick={() => insertHTML('<div class="pl-4 border-l-2 border-slate-300 my-2">', '</div>')} className="px-1.5 py-0.5 bg-white hover:bg-amber-200 rounded border border-amber-300 shadow-sm flex items-center gap-1" title="Indentation">
+              <i className="fas fa-indent text-[9px]"></i> Indenter
+            </button>
+          </div>
+
+          {multiline ? (
+            <textarea 
+              ref={inputRef}
+              className="w-full min-h-[100px] p-2 border-x-2 border-b-2 border-amber-400 bg-amber-50 text-slate-900 rounded-b-lg outline-none text-sm font-normal normal-case leading-relaxed shadow-inner focus:ring-2 ring-amber-200"
+              value={text}
+              onChange={(e) => setContent({...content, [id]: e.target.value})}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <input 
+              ref={inputRef}
+              type="text" 
+              className="w-full p-1.5 border-x-2 border-b-2 border-amber-400 bg-amber-50 text-slate-900 rounded-b-lg outline-none text-sm font-normal normal-case shadow-inner focus:ring-2 ring-amber-200"
+              value={text}
+              onChange={(e) => setContent({...content, [id]: e.target.value})}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+        </div>
+      );
+    }
+
+    function OptionalT({ id }) {
+      const { content, setContent, isEditMode } = useContext(window.ContentContext);
+      const text = content[id] || '';
+
+      if (!isEditMode && !text) return null;
+
+      if (isEditMode && !text) {
+        return (
+          <div className="border-2 border-dashed border-amber-300 p-3 text-center text-amber-600 rounded-xl cursor-pointer hover:bg-amber-50 mt-4 mb-4 transition-colors text-sm"
+               onClick={() => setContent({...content, [id]: 'Nouveau texte optionnel...'})}>
+            <i className="fas fa-plus-circle mr-2"></i> Ajouter un bloc de texte supplémentaire ici
+          </div>
+        );
+      }
+
+      return (
+          <div className={`relative group mt-4 mb-4 ${isEditMode ? 'bg-amber-50/50 p-4 rounded-xl border border-amber-200' : ''}`}>
+            {isEditMode && <div className="absolute -top-2.5 -left-2 bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm z-10 border border-amber-300">Optionnel</div>}
+            <div className="text-sm text-slate-600 leading-relaxed">
+              <T id={id} multiline={true} />
+            </div>
+            {isEditMode && (
+               <button onClick={() => setContent({...content, [id]: ''})} title="Supprimer ce bloc" className="absolute -top-2.5 -right-2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-md border border-red-200 transition-opacity z-10">
+                 <i className="fas fa-trash text-xs"></i>
+               </button>
+            )}
+          </div>
+      );
+    }
+
+    function Accordion({ titleId, icon, children, defaultOpen = false }) {
+      const [isOpen, setIsOpen] = useState(defaultOpen);
+      return (
+        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <button 
+            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <div className="flex items-center text-slate-800 font-bold text-lg">
+              <i className={`fas ${icon} text-emerald-600 mr-3 w-6 text-center`}></i>
+              <T id={titleId} />
+            </div>
+            <i className={`fas fa-chevron-down text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
+          </button>
+          <div className={`accordion-content px-6 bg-white ${isOpen ? 'open pb-6' : ''}`}>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function NavItem({ icon, labelId, isActive, onClick, locked }) {
+      return (
+        <button 
+          onClick={locked ? undefined : onClick}
+          className={`w-full flex items-center px-6 py-3.5 text-xs font-bold transition-all relative
+            ${isActive ? 'bg-[#064e3b] text-white border-l-4 border-emerald-500 shadow-inner' : 'text-slate-300 hover:bg-[#064e3b]/50 hover:text-white border-l-4 border-transparent'}
+            ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <i className={`fas ${icon} w-6 text-center mr-3 text-sm ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`}></i>
+          <span className="flex-1 text-left whitespace-normal leading-tight"><T id={labelId} /></span>
+          {locked ? <i className="fas fa-lock text-[10px] text-slate-500 ml-2"></i> : isActive && <i className="fas fa-chevron-right text-[10px] text-emerald-500 opacity-50 ml-2"></i>}
+        </button>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 1 : QU'EST-CE QU'UN PROJET DANS OPTIMA
+    // ==========================================
+    function Part1_Intro({ onNext }) {
+      const { gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [selection, setSelection] = useState({ p1: '', p2: '', p3: '', p4: '' });
+      const [checked, setChecked] = useState(false);
+      const [isCorrect, setIsCorrect] = useState(false);
+
+      const items = [
+        { id: 'p1', type: 'sold', text: "Développement d'une unité de production d'hydrogène pour un client industriel." },
+        { id: 'p2', type: 'not_sold', text: "Projet de recherche sur de nouveaux alliages de stockage de gaz." },
+        { id: 'p3', type: 'sold', text: "Contrat de maintenance annuelle sur un parc de bouteilles de gaz louées." },
+        { id: 'p4', type: 'not_sold', text: "Mise en place d'un programme d'optimisation Lean pour l'UAP Réservoirs." }
+      ];
+
+      const handleCheck = () => {
+        const correct = selection.p1 === 'sold' && selection.p2 === 'not_sold' && selection.p3 === 'sold' && selection.p4 === 'not_sold';
+        setIsCorrect(correct);
+        setChecked(true);
+        if (correct && gainXp) {
+          gainXp('pm_quiz_p1');
+        }
+      };
+
+      return (
+        <div className="space-y-8 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-briefcase text-emerald-600 mr-3"></i> <T id="pm_p1_title" />
+            </h2>
+            <p className="text-slate-600"><T id="pm_p1_desc" multiline={true} /></p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-info-circle text-emerald-600 mr-3"></i> Typologie des Projets
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-emerald-50/50 p-6 rounded-xl border border-emerald-100">
+                <h4 className="font-bold text-emerald-900 text-lg mb-2"><i className="fas fa-shopping-cart mr-2"></i> Projets Commerciaux (Sold)</h4>
+                <p className="text-sm text-slate-600"><T id="pm_p1_sold_desc" /></p>
+              </div>
+              <div className="bg-teal-50/50 p-6 rounded-xl border border-teal-100">
+                <h4 className="font-bold text-teal-900 text-lg mb-2"><i className="fas fa-building mr-2"></i> Projets Internes (Not sold)</h4>
+                <p className="text-sm text-slate-600"><T id="pm_p1_notsold_desc" /></p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-gamepad text-emerald-500 mr-3"></i> Exercice : Catégoriser les projets
+            </h3>
+            <div className="space-y-4 max-w-3xl mx-auto">
+              {items.map(item => (
+                <div key={item.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <span className="text-sm text-slate-700 font-medium">{item.text}</span>
+                  <div className="flex gap-2 shrink-0">
+                    <button 
+                      onClick={() => { setSelection({...selection, [item.id]: 'sold'}); setChecked(false); }}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${selection[item.id] === 'sold' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'}`}
+                    >
+                      Commercial
+                    </button>
+                    <button 
+                      onClick={() => { setSelection({...selection, [item.id]: 'not_sold'}); setChecked(false); }}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${selection[item.id] === 'not_sold' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'}`}
+                    >
+                      Interne
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <span className="text-xs text-slate-400"><i className="fas fa-info-circle mr-1"></i> Sélectionnez la typologie correcte pour chaque projet proposé.</span>
+                <button onClick={handleCheck} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow transition-colors">Vérifier</button>
+              </div>
+
+              {checked && isCorrect && <div className="p-3 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-check-circle mr-2 text-lg"></i> Félicitations ! Vos réponses sont correctes. (+50 XP)</div>}
+              {checked && !isCorrect && <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-times-circle mr-2 text-lg"></i> Il y a des erreurs dans vos choix, essayez encore !</div>}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!completedTasks['pm_quiz_p1']} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${completedTasks['pm_quiz_p1'] ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 2 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 2 : LE CYCLE DE VIE DU PROJET
+    // ==========================================
+    function Part2_Lifecycle({ onNext }) {
+      const { gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [order, setOrder] = useState(['negotiation', 'quotation', 'wait_pm', 'prospective', 'execution', 'closed']);
+      const [checked, setChecked] = useState(false);
+      const [isCorrect, setIsCorrect] = useState(false);
+
+      const stepsMap = {
+        prospective: { label: "1. Prospective", desc: "Le projet vient d'être identifié par le commerce", phase: "sales" },
+        quotation: { label: "2. Quotation", desc: "Offre technique et commerciale en cours de chiffrage", phase: "sales" },
+        negotiation: { label: "3. Negotiation", desc: "Offre remise, négociation finale client", phase: "sales" },
+        wait_pm: { label: "4. Won - Wait PM", desc: "Projet gagné, attente d'affectation du PM d'exécution", phase: "exec" },
+        execution: { label: "5. Won - Execution", desc: "Projet officiellement lancé et en cours", phase: "exec" },
+        closed: { label: "6. Closed / Canceled", desc: "Projet terminé normalement ou annulé", phase: "exec" }
+      };
+
+      const correctOrder = ['prospective', 'quotation', 'negotiation', 'wait_pm', 'execution', 'closed'];
+
+      const moveStep = (index, direction) => {
+        const nextOrder = [...order];
+        const targetIndex = index + direction;
+        if (targetIndex >= 0 && targetIndex < nextOrder.length) {
+          const temp = nextOrder[index];
+          nextOrder[index] = nextOrder[targetIndex];
+          nextOrder[targetIndex] = temp;
+          setOrder(nextOrder);
+          setChecked(false);
+        }
+      };
+
+      const handleCheck = () => {
+        const correct = order.every((val, i) => val === correctOrder[i]);
+        setIsCorrect(correct);
+        setChecked(true);
+        if (correct && gainXp) {
+          gainXp('pm_quiz_p2');
+        }
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-history text-emerald-600 mr-3"></i> <T id="pm_p2_title" />
+            </h2>
+            <p className="text-slate-600"><T id="pm_p2_desc" multiline={true} /></p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-sort-amount-down text-emerald-500 mr-3"></i> Ordonner le cycle de vie du projet
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">Utilisez les flèches pour déplacer les phases de sorte à reconstituer le cycle de vie chronologique exact d'un projet dans OPTIMA, de l'avant-vente à la clôture.</p>
+
+            <div className="space-y-3 max-w-2xl mx-auto">
+              {order.map((key, index) => {
+                const s = stepsMap[key];
+                return (
+                  <div key={key} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <span className={`w-3.5 h-3.5 rounded-full ${s.phase === 'sales' ? 'bg-amber-400' : 'bg-emerald-500'}`} title={s.phase === 'sales' ? 'Phase Commerciale' : 'Phase Exécution'}></span>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-800">{s.label}</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button onClick={() => moveStep(index, -1)} disabled={index === 0} className="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"><i className="fas fa-chevron-up"></i></button>
+                      <button onClick={() => moveStep(index, 1)} disabled={index === order.length - 1} className="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"><i className="fas fa-chevron-down"></i></button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <span className="text-xs text-slate-400"><i className="fas fa-info-circle mr-1"></i> Les puces jaunes indiquent la phase commerciale, les puces vertes indiquent la phase d'exécution.</span>
+                <button onClick={handleCheck} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow transition-colors">Vérifier l'ordre</button>
+              </div>
+
+              {checked && isCorrect && <div className="p-3 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-check-circle mr-2 text-lg"></i> Ordre parfait ! Le cycle de vie n'a plus de secret pour vous. (+50 XP)</div>}
+              {checked && !isCorrect && <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-times-circle mr-2 text-lg"></i> Le cycle n'est pas encore correct, revoyez l'ordre d'enchaînement.</div>}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!completedTasks['pm_quiz_p2']} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${completedTasks['pm_quiz_p2'] ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 3 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 3 : LE PLAN DE CHARGE (PROJECTLOAD)
+    // ==========================================
+    function Part3_ProjectLoad({ onNext }) {
+      const { gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [ingested, setIngested] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [step, setStep] = useState(1);
+
+      const handleIngest = () => {
+        setLoading(true);
+        setTimeout(() => {
+          setLoading(false);
+          setIngested(true);
+          if (gainXp) {
+            gainXp('pm_quiz_p3');
+          }
+        }, 2000);
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-file-excel text-emerald-600 mr-3"></i> <T id="pm_p4_title" />
+            </h2>
+            <p className="text-slate-600"><T id="pm_p4_desc" multiline={true} /></p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-info-circle text-emerald-600 mr-3"></i> Fonctionnement du Google Sheet de Charge
+            </h3>
+            <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
+              <p>Le plan de charge (ProjectLoad) d'un projet dans OPTIMA prend la forme d'un <strong>Google Sheet sécurisé généré par l'application</strong>.</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 font-medium">
+                <i className="fas fa-exclamation-triangle text-amber-500 mr-2"></i> Remplir le Google Sheet est nécessaire, mais insuffisant. Les heures saisies ne deviennent une "charge réelle" (Workload) pour l'entreprise qu'une fois le fichier <strong>"Ingéré et Validé" (Ingest & Validate)</strong> par le système.
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-cloud-upload-alt text-emerald-500 mr-3"></i> Simulation : Ingestion du plan de charge S&OP
+            </h3>
+            
+            <div className="max-w-xl mx-auto bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-inner p-6 flex flex-col items-center">
+              {step === 1 && (
+                <div className="text-center space-y-4 animate-fade-in w-full">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow-sm"><i className="fas fa-file-excel"></i></div>
+                  <h4 className="font-bold text-slate-800">Étape 1 : Remplissage du fichier</h4>
+                  <p className="text-xs text-slate-500">Le Google Sheet du projet 'Alpha' vient d'être complété sur Google Drive avec 450 heures requises.</p>
+                  <button onClick={() => setStep(2)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm shadow-sm transition-colors">Fichier Prêt : Passer à l'ingestion</button>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="text-center space-y-4 animate-fade-in w-full">
+                  <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto text-2xl shadow-sm"><i className="fas fa-play"></i></div>
+                  <h4 className="font-bold text-slate-800">Étape 2 : Lancement de l'action</h4>
+                  <p className="text-xs text-slate-500">Dans l'interface OPTIMA, cliquez sur le bouton "Ingest & Validate" pour faire remonter ces heures dans le moteur capacitaire.</p>
+                  
+                  <button 
+                    onClick={handleIngest} 
+                    disabled={loading || ingested} 
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm shadow-sm transition-all flex items-center justify-center mx-auto disabled:opacity-50"
+                  >
+                    {loading ? <><i className="fas fa-spinner fa-spin mr-2"></i> Ingestion en cours...</> : ingested ? <><i className="fas fa-check mr-2"></i> Ingestion Réussie</> : "Ingest & Validate"}
+                  </button>
+
+                  {ingested && (
+                    <div className="pt-4 border-t border-slate-200 mt-4 animate-fade-in">
+                      <p className="text-xs text-green-700 font-bold mb-3"><i className="fas fa-check-circle mr-1"></i> Projet validé ! Nouvelle version de charge active.</p>
+                      <button onClick={() => setStep(3)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg text-xs shadow-sm transition-colors">Suivant</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="text-center space-y-4 animate-fade-in w-full">
+                  <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto text-2xl shadow-sm"><i className="fas fa-lock"></i></div>
+                  <h4 className="font-bold text-green-800">Étape 3 : Charge active validée !</h4>
+                  <p className="text-xs text-slate-500">Les 450 heures sont désormais visibles par les managers sur la courbe rouge de charge et prêtes à être allouées nominativement.</p>
+                  <span className="inline-block bg-green-50 text-green-700 text-[10px] font-bold px-3 py-1 rounded border border-green-200 uppercase tracking-wider">Parcours validé (+50 XP)</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!completedTasks['pm_quiz_p3']} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${completedTasks['pm_quiz_p3'] ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 4 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 4 : SCÉNARIOS & CONVERTISSEUR ETP
+    // ==========================================
+    function Part4_Scenarios({ onNext }) {
+      const { gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [scenario, setScenario] = useState('expected');
+      const [hoursInput, setHoursInput] = useState('150');
+      const [standardHours, setStandardHours] = useState('150');
+      
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      // Calcul dynamique de l'ETP / FTE
+      const fteResult = useMemo(() => {
+        const hrs = parseFloat(hoursInput);
+        const std = parseFloat(standardHours);
+        if (isNaN(hrs) || isNaN(std) || std === 0) return 0;
+        return (hrs / std).toFixed(2);
+      }, [hoursInput, standardHours]);
+
+      // Mettre à jour le graphique selon le scénario
+      useEffect(() => {
+        if (chartRef.current) {
+          if (!chartInstance.current) {
+            const ctx = chartRef.current.getContext('2d');
+            
+            const months = Array.from({length: 12}, (_, i) => `M${i+1}`);
+            
+            chartInstance.current = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: months,
+                datasets: [
+                  {
+                    label: 'Charge Projet (Workload)',
+                    data: [100, 110, 120, 100, 90, 80, 70, 60, 50, 40, 30, 20],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                  },
+                  {
+                    label: 'Capacité de production standard',
+                    data: Array(12).fill(100),
+                    borderColor: '#94a3b8',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom' }
+                },
+                scales: {
+                  y: { beginAtZero: true, max: 200 }
+                }
+              }
+            });
+          } else {
+            const chart = chartInstance.current;
+            let data = [];
+            if (scenario === 'min') {
+              data = [60, 65, 70, 60, 55, 50, 45, 40, 30, 20, 15, 10];
+            } else if (scenario === 'expected') {
+              data = [100, 110, 120, 100, 90, 80, 70, 60, 50, 40, 30, 20];
+            } else { // max
+              data = [150, 160, 180, 150, 140, 130, 110, 90, 80, 70, 50, 30];
+            }
+            chart.data.datasets[0].data = data;
+            chart.update();
+          }
+        }
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [scenario]);
+
+      const handleConfirmTask = () => {
+        if (gainXp) {
+          gainXp('pm_quiz_p4');
+        }
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-chart-area text-emerald-600 mr-3"></i> <T id="pm_p5_title" />
+            </h2>
+            <p className="text-slate-600"><T id="pm_p5_desc" multiline={true} /></p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row gap-8">
+            <div className="lg:w-2/3 flex flex-col space-y-6">
+              <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 text-xl flex items-center">
+                <i className="fas fa-chart-line text-emerald-500 mr-3"></i> Simulateur de Scénario de Demande S&OP
+              </h3>
+              
+              <div className="flex gap-2">
+                {['min', 'expected', 'max'].map((s) => (
+                  <button 
+                    key={s} 
+                    onClick={() => setScenario(s)} 
+                    className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all shadow-sm uppercase tracking-wider ${scenario === s ? 'bg-emerald-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  >
+                    Scénario {s === 'min' ? 'Conservateur (Min)' : s === 'expected' ? 'Réaliste (Expected)' : 'Optimiste (Max)'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner w-full h-64 relative">
+                <canvas ref={chartRef}></canvas>
+              </div>
+            </div>
+
+            {/* Outil ETP */}
+            <div className="lg:w-1/3 bg-slate-50 border border-slate-200 p-6 rounded-2xl flex flex-col h-full">
+              <h4 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200"><i className="fas fa-calculator text-emerald-500 mr-2"></i> Convertisseur ETP / FTE</h4>
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">Entrez le volume d'heures estimées pour obtenir sa valeur correspondante en Équivalents Temps Plein (ETP / FTE) d'un mois.</p>
+              
+              <div className="space-y-4 flex-1">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Charge estimée (Heures)</label>
+                  <input type="number" value={hoursInput} onChange={e=>setHoursInput(e.target.value)} className="w-full p-2.5 text-sm border rounded-xl outline-none focus:border-emerald-500 bg-white text-slate-700" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Capacité standard théorique mensuelle (Heures)</label>
+                  <input type="number" value={standardHours} onChange={e=>setStandardHours(e.target.value)} className="w-full p-2.5 text-sm border rounded-xl outline-none focus:border-emerald-500 bg-white text-slate-700" />
+                </div>
+
+                <div className="bg-[#064e3b] text-white p-5 rounded-2xl text-center shadow-lg mt-6">
+                   <span className="text-xs text-emerald-200 uppercase tracking-widest font-bold">Valeur en ETP / FTE</span>
+                   <p className="text-4xl font-mono font-black mt-1 text-emerald-300">{fteResult} <span className="text-sm">ETP</span></p>
+                </div>
+              </div>
+              
+              <button onClick={handleConfirmTask} className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs mt-6 transition-colors shadow">Confirmer l'apprentissage</button>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!completedTasks['pm_quiz_p4']} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${completedTasks['pm_quiz_p4'] ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Passer à la Partie 5 <i className="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // PARTIE 5 : RÔLES ET LIMITES
+    // ==========================================
+    function Part5_Roles({ onNext }) {
+      const { gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [checked, setChecked] = useState(false);
+      const [isCorrect, setIsCorrect] = useState(false);
+      const [assignments, setAssignments] = useState({
+        act1: '', act2: '', act3: '', act4: ''
+      });
+
+      const actions = [
+        { id: 'act1', text: "Créer, modifier et valider les fichiers Google Sheet de chiffrage (ProjectLoad)." },
+        { id: 'act2', text: "Affecter nominativement les collaborateurs physiques de ses équipes aux besoins chiffrés." },
+        { id: 'act3', text: "Déclarer un projet interne gagné (Declare project won) pour lancer sa réalisation réelle." },
+        { id: 'act4', text: "Déclarer un projet commercial gagné (Won - wait PM) dans le système." }
+      ];
+
+      const correctAnswers = {
+        act1: 'pm',
+        act2: 'manager',
+        act3: 'manager',
+        act4: 'sales_dir'
+      };
+
+      const handleCheck = () => {
+        const correct = Object.keys(correctAnswers).every(key => assignments[key] === correctAnswers[key]);
+        setIsCorrect(correct);
+        setChecked(true);
+        if (correct && gainXp) {
+          gainXp('pm_quiz_p5');
+        }
+      };
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-[calc(100vh-100px)]">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <i className="fas fa-user-shield text-emerald-600 mr-3"></i> Rôles, Limites et Habilitations S&OP
+            </h2>
+            <p className="text-slate-600">Comprendre les frontières de chaque métier pour garantir la séparation des pouvoirs et la sécurité des données.</p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-3 mb-6 text-xl flex items-center">
+              <i className="fas fa-puzzle-piece text-emerald-500 mr-3"></i> Exercice d'habilitation : Qui possède ce droit ?
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">Associez chaque action opérationnelle au bon acteur d'OPTIMA pour valider votre habilitation de parcours PM & Sales.</p>
+
+            <div className="space-y-4 max-w-4xl mx-auto">
+              {actions.map(act => (
+                <div key={act.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4">
+                  <span className="text-sm text-slate-700 font-medium md:w-2/3">{act.text}</span>
+                  <select 
+                    value={assignments[act.id]} 
+                    onChange={e => { setAssignments({...assignments, [act.id]: e.target.value}); setChecked(false); }}
+                    className="p-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-500 bg-white text-slate-700 w-full md:w-56"
+                  >
+                    <option value="">-- Choisir --</option>
+                    <option value="pm">Project Manager / Proposal</option>
+                    <option value="manager">Manager de Département (Line Manager)</option>
+                    <option value="sales_dir">Directeur Commercial (Head of Sales)</option>
+                  </select>
+                </div>
+              ))}
+
+              <div className="pt-6 border-t border-slate-100 flex justify-end">
+                <button onClick={handleCheck} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow transition-colors">Valider mes choix</button>
+              </div>
+
+              {checked && isCorrect && <div className="p-3 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-check-circle mr-2 text-lg"></i> Vos attributions sont 100% conformes ! Vos droits PM sont débloqués. (+50 XP)</div>}
+              {checked && !isCorrect && <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-bold text-center mt-4"><i className="fas fa-times-circle mr-2 text-lg"></i> Il y a des erreurs d'habilitation dans la répartition. Veuillez corriger pour continuer.</div>}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 flex justify-end">
+            <button onClick={onNext} disabled={!completedTasks['pm_quiz_p5']} className={`w-full md:w-auto shadow-md py-3 px-8 text-base font-bold transition-all rounded-xl ${completedTasks['pm_quiz_p5'] ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              Terminer la formation <i className="fas fa-flag-checkered ml-2"></i>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // MODULE FINALE & FEEDBACK
+    // ==========================================
+    function FinalModule({ userSession }) {
+      const { content = {}, gainXp, completedTasks } = useContext(window.ContentContext) || {};
+      const [feedback, setFeedback] = useState('');
+      const [rating, setRating] = useState(0);
+      const [submitted, setSubmitted] = useState(false);
+
+      useEffect(() => {
+        if (completedTasks && completedTasks['pm_feedback']) {
+          setSubmitted(true);
+        }
+      }, [completedTasks]);
+
+      const handleSubmit = () => {
+        if (!rating) return;
+        setSubmitted(true);
+        if (gainXp) {
+          gainXp('pm_feedback');
+        }
+      };
+
+      return (
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in text-center py-12">
+          <i className="fas fa-medal text-6xl text-amber-500 mb-6 drop-shadow-md"></i>
+          <h3 className="text-3xl font-extrabold text-slate-800 mb-4"><T id="pm_c_title" /></h3>
+          <p className="text-slate-600 mb-8 max-w-lg mx-auto">Félicitations {userSession?.email || ''}, <T id="pm_c_desc" multiline={true} /></p>
+          
+          {!submitted ? (
+            <div className="max-w-md mx-auto bg-slate-50 p-6 rounded-2xl border border-slate-200 text-left shadow-md">
+              <h4 className="font-bold text-slate-800 mb-4 text-center">Votre avis nous intéresse</h4>
+              <div className="flex justify-center gap-2 mb-6">
+                {[1,2,3,4,5].map(star => (
+                  <button key={star} onClick={() => setRating(star)} className={`text-3xl transition-colors ${rating >= star ? 'text-amber-400' : 'text-slate-200'}`}>
+                    <i className="fas fa-star"></i>
+                  </button>
+                ))}
+              </div>
+              <textarea 
+                value={feedback} 
+                onChange={(e) => setFeedback(e.target.value)} 
+                placeholder="Un commentaire pour améliorer ce module PM ?" 
+                className="w-full p-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 mb-4 min-h-[100px] bg-white text-slate-700"
+              />
+              <button onClick={handleSubmit} disabled={!rating} className={`w-full font-bold py-3 rounded-xl transition-all shadow ${rating ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                Envoyer le Feedback
+              </button>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 text-emerald-700 p-6 rounded-xl border border-emerald-200 max-w-md mx-auto animate-fade-in shadow-inner">
+              <i className="fas fa-check-circle text-4xl mb-3 text-emerald-500"></i>
+              <p className="font-bold">Merci pour votre retour !</p>
+              <p className="text-sm mt-1">Vos points de progression finaux ont été enregistrés.</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // MODULE ACCUEIL PARCOURS PM
+    // ==========================================
+    function HomeModule({ onNext, userSession, gainXp }) {
+      const tabs = [
+        { id: 'prog', icon: 'fa-map-signs', title: 'Programme', desc: "Comprendre l'ingestion capacitaire de bout en bout." },
+        { id: 'obj', icon: 'fa-bullseye', title: 'Objectifs', desc: "Maîtriser les ProjectLoads d'OPTIMA, leurs versions, et le cycle de vie des projets." },
+        { id: 'howto', icon: 'fa-gamepad', title: 'Habilitation', desc: "Répondez aux exercices et validez chaque module pour obtenir l'habilitation PM." }
+      ];
+
+      return (
+        <div className="space-y-6 animate-fade-in pb-10">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-6">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0"><i className="fas fa-graduation-cap"></i></div>
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-800"><T id="pm_home_title" /></h2>
+              <p className="text-slate-600 mt-1"><T id="pm_home_welcome" multiline={true} /></p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 bg-white p-8 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2"><i className="fas fa-list-ol text-emerald-500 mr-2"></i> Contenu de la formation</h3>
+                <div className="space-y-4">
+                  {tabs.map(tab => (
+                    <div key={tab.id} className="flex gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm border border-emerald-100"><i className={`fas ${tab.icon}`}></i></div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-800">{tab.title}</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{tab.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <OptionalT id="pm_home_opt_desc" />
+            </div>
+
+            <div className="lg:col-span-5 bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
+              
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 animate-fade-in text-center shadow-inner">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl border border-emerald-200"><i className="fas fa-check"></i></div>
+                <h4 className="font-bold text-emerald-800 text-sm mb-1">Session active</h4>
+                <p className="text-[10px] text-emerald-600 font-mono mb-2">{userSession.email}</p>
+              </div>
+
+              <div className="mt-8 animate-fade-in">
+                <button onClick={onNext} className="btn-primary w-full shadow-lg py-3.5 text-base">Démarrer le Parcours PM <i className="fas fa-arrow-right ml-2"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // APPLICATION MAÎTRE PM & SALES
+    // ==========================================
+    function App() {
+      const [currentPage, setCurrentPage] = useState('home');
+      const [userSession, setUserSession] = useState(null); 
+      const [content, setContent] = useState({});
+      const [completedTasks, setCompletedTasks] = useState({});
+      const [isLoading, setIsLoading] = useState(true);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+      const [isEditMode, setIsEditMode] = useState(false);
+      const [isDevMode, setIsDevMode] = useState(false);
+      const [isSaving, setIsSaving] = useState(false);
+      const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+      const xpMap = {
+        nav_part1: 100, nav_part2: 100, nav_part3: 100, nav_part4: 100, nav_part5: 100,
+        pm_quiz_p1: 50, pm_quiz_p2: 50, pm_quiz_p3: 50, pm_quiz_p4: 50, pm_quiz_p5: 50,
+        pm_feedback: 50
+      };
+      const maxXP = 750;
+
+      const xp = useMemo(() => {
+        let total = 0;
+        Object.keys(completedTasks).forEach(k => {
+          if (xpMap[k]) total += xpMap[k];
+        });
+        return Math.min(maxXP, total);
+      }, [completedTasks]);
+
+      // Chargement automatique SSO
+      useEffect(() => {
+        const savedEmail = localStorage.getItem('optima_user_email');
+        if (savedEmail) {
+          setUserSession({ email: savedEmail });
+        } else {
+          navigateToPage('index');
+        }
+      }, []);
+
+      const loadData = (isManualRefresh = false) => {
+        if (isManualRefresh) setIsRefreshing(true);
+        
+        if (typeof google !== 'undefined' && google.script) {
+          let dataLoaded = false;
+          let progressLoaded = false;
+
+          const checkDone = () => {
+            if (dataLoaded && progressLoaded) {
+              setIsLoading(false);
+              if (isManualRefresh) setIsRefreshing(false);
+            }
+          };
+
+          google.script.run
+            .withFailureHandler(err => { dataLoaded = true; checkDone(); })
+            .withSuccessHandler(data => { setContent(data || {}); dataLoaded = true; checkDone(); })
+            .getContent();
+
+          if (userSession?.email) {
+            google.script.run
+              .withFailureHandler(err => { setCompletedTasks({}); progressLoaded = true; checkDone(); })
+              .withSuccessHandler(progressData => { setCompletedTasks(progressData || {}); progressLoaded = true; checkDone(); })
+              .getUserProgress(userSession.email);
+          } else {
+            progressLoaded = true; checkDone();
+          }
+        } else {
+           setTimeout(() => {
+             setContent({
+                'pm_home_title': 'Formation OPTIMA S&OP - PM & Sales',
+                'pm_home_welcome': 'Apprenez à gérer les plans de charge, les types de projet et les scénarios de demande commerciale dans OPTIMA.',
+                'pm_p1_title': 'Partie 1 : Qu\'est-ce qu\'un projet ?',
+                'pm_p1_desc': 'Définir la nature et la typologie des besoins dans OPTIMA.',
+                'pm_p2_title': 'Partie 2 : Le Cycle de Vie S&OP',
+                'pm_p2_desc': 'Parcourir les grandes phases : commerciales vs exécution.',
+                'pm_p4_title': 'Partie 3 : Le Plan de Charge',
+                'pm_p4_desc': 'Apprendre à chiffrer et ingérer le ProjectLoad.',
+                'pm_p5_title': 'Partie 4 : Scénarios & ETP / FTE',
+                'pm_p5_desc': 'Convertir les heures de travail et piloter selon la probabilité.',
+                'pm_c_title': 'Habilitation OPTIMA PM Obtenue !',
+                'pm_c_desc': 'Vous avez validé l\'ensemble des étapes du cycle de gestion capacitaire.',
+                'p5_c_fb_ph': 'Donnez-nous votre avis'
+             });
+             setIsLoading(false);
+             if (isManualRefresh) setIsRefreshing(false);
+           }, 1000);
+        }
+      };
+
+      useEffect(() => {
+        if (userSession?.email) {
+          loadData(false);
+        }
+      }, [userSession]);
+
+      const handleSave = () => {
+        setIsSaving(true);
+        if (typeof google !== 'undefined' && google.script) {
+            google.script.run
+              .withFailureHandler(err => { setIsSaving(false); setIsEditMode(false); })
+              .withSuccessHandler(() => {
+                setIsSaving(false);
+                setIsEditMode(false);
+              }).saveContent(content);
+        } else {
+            setIsSaving(false);
+            setIsEditMode(false);
+        }
+      };
+
+      const gainXp = (key) => {
+        if (key && !completedTasks[key] && userSession?.email) {
+           const now = new Date();
+           const formattedDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+           setCompletedTasks(prev => ({...prev, [key]: formattedDate}));
+           
+           if (typeof google !== 'undefined' && google.script && google.script.run.logUserProgress) {
+              google.script.run
+                .withFailureHandler(err => console.error(err))
+                .logUserProgress(userSession.email, key, formattedDate);
+           }
+        }
+      };
+
+      const handleNavClick = (pageName) => {
+        if (pageName !== currentPage) {
+             setCurrentPage(pageName);
+             gainXp('nav_' + pageName); 
+        }
+      };
+
+      const getHelpText = () => {
+        if (currentPage === 'home') return "Démarrez le parcours en cliquant sur le bouton en bas de la page d'accueil.";
+        if (currentPage === 'part1') return "Catégorisez les projets de l'exercice pour débloquer l'étape suivante.";
+        if (currentPage === 'part2') return "Reconstituez la chronologie exacte du cycle de vie des projets.";
+        if (currentPage === 'part3') return "Lancez l'ingestion simulée de votre plan de charge Google Sheet.";
+        if (currentPage === 'part4') return "Utilisez le convertisseur ETP et confirmez vos connaissances.";
+        if (currentPage === 'part5') return "Complétez l'habilitation en affectant correctement les habilitations OPTIMA.";
+        return "";
+      };
+
+      if (!userSession) {
+        return (
+          <div className="flex h-screen items-center justify-center bg-slate-50 flex-col">
+            <i className="fas fa-circle-notch fa-spin text-4xl text-emerald-600 mb-4"></i>
+            <p className="text-slate-500 font-medium">Validation SSO en cours...</p>
+          </div>
+        );
+      }
+
+      if (isLoading) {
+        return (
+          <div className="flex h-screen items-center justify-center bg-slate-50 flex-col">
+            <i className="fas fa-circle-notch fa-spin text-4xl text-emerald-600 mb-4"></i>
+            <p className="text-slate-500 font-medium">Chargement du contenu PM & Sales...</p>
+          </div>
+        );
+      }
+
+      const isPart1Done = !!completedTasks['pm_quiz_p1'];
+      const isPart2Done = !!completedTasks['pm_quiz_p2'];
+      const isPart3Done = !!completedTasks['pm_quiz_p3'];
+      const isPart4Done = !!completedTasks['pm_quiz_p4'];
+      const isPart5Done = !!completedTasks['pm_quiz_p5'];
+
+      return (
+        <window.ContentContext.Provider value={{ content, setContent, isEditMode, isDevMode, gainXp, completedTasks, setCompletedTasks }}>
+          <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+
+            {/* Modale d'aide */}
+            {isHelpOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsHelpOpen(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="bg-emerald-600 p-4 flex items-center justify-between text-white">
+                    <h3 className="font-bold flex items-center text-lg"><i className="fas fa-life-ring mr-2"></i> Aide PM & Sales</h3>
+                    <button onClick={() => setIsHelpOpen(false)} className="text-emerald-100 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"><i className="fas fa-times"></i></button>
+                  </div>
+                  <div className="p-8 text-slate-700 font-medium text-center leading-relaxed">
+                    {getHelpText()}
+                  </div>
+                  <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-center">
+                    <button onClick={() => setIsHelpOpen(false)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all shadow-sm">J'ai compris</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions Administrateur */}
+            <div className="absolute top-4 right-4 z-50 flex items-center space-x-3 bg-white p-2 rounded-lg shadow-lg border border-slate-200">
+              <button onClick={() => loadData(true)} disabled={isRefreshing} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm flex items-center transition-colors border border-slate-300 disabled:opacity-50">
+                <i className={`fas fa-sync-alt mr-2 ${isRefreshing ? 'fa-spin text-emerald-500' : ''}`}></i> {isRefreshing ? 'Mise à jour...' : 'Mettre à jour'}
+              </button>
+
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+              <label className="flex items-center cursor-pointer text-sm font-bold text-slate-700">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={isEditMode} onChange={() => setIsEditMode(!isEditMode)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isEditMode ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isEditMode ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+                <span className="ml-3 mr-2"><i className="fas fa-pen text-amber-500 mr-1"></i> Édition CMS</span>
+              </label>
+
+              {isEditMode && (
+                <button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-md text-sm font-bold shadow transition-colors">
+                  {isSaving ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-save mr-2"></i> Enregistrer</>}
+                </button>
+              )}
+            </div>
+
+            <nav className="w-80 bg-[#022c22] text-white flex flex-col shadow-2xl z-20 shrink-0 font-sans">
+              <div className="p-6 bg-[#02221b] flex flex-col items-center border-b border-[#064e3b]">
+                <button onClick={() => navigateToPage('index')} className="w-full flex items-center px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-[#064e3b] rounded-xl transition-all text-left mb-6 border border-emerald-800">
+                  <i className="fas fa-chevron-left mr-2"></i> Retour au Portail
+                </button>
+                <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-inner"><i className="fas fa-project-diagram text-emerald-600 text-2xl"></i></div>
+                <h1 className="text-lg font-extrabold tracking-wider text-emerald-100">OPTIMA Projets</h1>
+                <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold">Parcours PM & Sales</p>
+              </div>
+              <div className="flex-1 overflow-y-auto py-4">
+                <NavItem icon="fa-home" labelId="nav_home" isActive={currentPage === 'home'} onClick={() => setCurrentPage('home')} locked={false} />
+                <div className="px-6 py-2 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-[#064e3b] pt-4">Plan de Formation</div>
+                <NavItem icon="fa-briefcase" labelId="pm_p1_title" isActive={currentPage === 'part1'} onClick={() => handleNavClick('part1')} locked={false} />
+                <NavItem icon="fa-history" labelId="pm_p2_title" isActive={currentPage === 'part2'} onClick={() => handleNavClick('part2')} locked={!isPart1Done} />
+                <NavItem icon="fa-file-excel" labelId="pm_p4_title" isActive={currentPage === 'part3'} onClick={() => handleNavClick('part3')} locked={!isPart2Done} />
+                <NavItem icon="fa-chart-area" labelId="pm_p5_title" isActive={currentPage === 'part4'} onClick={() => handleNavClick('part4')} locked={!isPart3Done} />
+                <NavItem icon="fa-user-shield" labelId="nav_p5" isActive={currentPage === 'part5'} onClick={() => handleNavClick('part5')} locked={!isPart4Done} />
+              </div>
+
+              <div className="p-5 bg-[#02221b] border-t border-[#064e3b] flex flex-col gap-2 shrink-0 z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.2)]">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-1">Aide & Support</div>
+                <button onClick={() => setIsHelpOpen(true)} className="w-full flex items-center px-4 py-3 text-xs font-bold text-amber-400 hover:bg-amber-400/10 hover:text-amber-300 rounded-xl transition-all border border-transparent hover:border-amber-400/30 text-left shadow-sm">
+                  <i className="fas fa-life-ring w-6 text-center mr-3 text-lg"></i> 
+                  <span className="flex-1 leading-tight">Objectif actuel<br/><span className="text-[9px] font-normal text-amber-400/70">Conseil d'apprentissage</span></span>
+                </button>
+              </div>
+            </nav>
+
+            <div className="flex flex-col flex-1 overflow-hidden relative">
+              {userSession && (
+                <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-8 shrink-0 z-10 animate-fade-in shadow-sm">
+                   <div className="flex items-center gap-4 flex-1 max-w-xl">
+                     <div className="flex items-center gap-2"><i className="fas fa-trophy text-emerald-500"></i><span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Habilitation</span></div>
+                     <div className="flex-1 h-3.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                        <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700 ease-out relative" style={{ width: `${Math.min((xp / maxXP) * 100, 100)}%` }}>
+                          <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                        </div>
+                     </div>
+                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">{xp} / {maxXP} XP</span>
+                   </div>
+                   <div className="flex items-center gap-3 ml-8 border-l border-slate-200 pl-8">
+                     <div className="text-right hidden md:block">
+                       <div className="text-sm font-bold text-slate-800">{userSession.email}</div>
+                       <div className="text-[10px] text-slate-500 font-medium">Session Project Manager</div>
+                     </div>
+                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 flex items-center justify-center font-bold text-lg border-2 border-white shadow-md">
+                       {userSession.email.charAt(0).toUpperCase()}
+                     </div>
+                   </div>
+                </header>
+              )}
+
+              <main className={`flex-1 overflow-y-auto bg-slate-50 relative px-8 pb-8 transition-all ${isEditMode ? 'border-4 border-amber-300' : ''}`}>
+                <div className="max-w-6xl mx-auto pt-8">
+                  {currentPage === 'home' && <HomeModule onNext={() => handleNavClick('part1')} userSession={userSession} gainXp={gainXp} />}
+                  {currentPage === 'part1' && <Part1_Intro onNext={() => handleNavClick('part2')} />}
+                  {currentPage === 'part2' && <Part2_Lifecycle onNext={() => handleNavClick('part3')} />}
+                  {currentPage === 'part3' && <Part3_ProjectLoad onNext={() => handleNavClick('part4')} />}
+                  {currentPage === 'part4' && <Part4_Scenarios onNext={() => handleNavClick('part5')} />}
+                  {currentPage === 'part5' && <Part5_Roles onNext={() => handleNavClick('final')} />}
+                  {currentPage === 'final' && <FinalModule userSession={userSession} />}
+                </div>
+              </main>
+            </div>
+          </div>
+        </window.ContentContext.Provider>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

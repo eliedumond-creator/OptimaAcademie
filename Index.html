@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portail OPTIMA Academy</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(12px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    .animate-fade-in { 
+      animation: fadeIn 0.4s ease-out forwards; 
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <div id="root" class="flex-grow flex flex-col"></div>
+
+  <!-- ROUTEUR ET INTERFACE DE NAVIGATION HYBRIDE -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Détecte l'environnement et redirige de façon transparente
+    function navigateToPage(pageName) {
+      const isGAS = typeof google !== 'undefined' && google.script && google.script.host;
+      if (isGAS) {
+        google.script.run.withSuccessHandler(function(url) {
+          window.open(url + '?page=' + pageName, '_top');
+        }).getScriptUrl();
+      } else {
+        // Redirection relative en local/serveur web classique
+        window.location.href = pageName + '.html';
+      }
+    }
+
+    function PortalApp() {
+      const [emailInput, setEmailInput] = useState('');
+      const [userSession, setUserSession] = useState(null);
+
+      useEffect(() => {
+        // Restauration de session automatique via localStorage (SSO)
+        const savedEmail = localStorage.getItem('optima_user_email');
+        if (savedEmail) {
+          setUserSession({ email: savedEmail });
+        }
+      }, []);
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const trimmed = emailInput.trim();
+        if (trimmed && trimmed.includes('@') && trimmed.length > 5) {
+          localStorage.setItem('optima_user_email', trimmed);
+          setUserSession({ email: trimmed });
+          
+          // Facultatif : Enregistrement de l'utilisateur sur le serveur Google Sheets si disponible
+          if (typeof google !== 'undefined' && google.script && google.script.run.registerUser) {
+            google.script.run.registerUser(trimmed);
+          }
+        }
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('optima_user_email');
+        setUserSession(null);
+      };
+
+      return (
+        <div className="flex-grow flex flex-col items-center justify-center px-4 relative py-12">
+          {/* Arrière-plan stylisé */}
+          <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-950 to-slate-900 -z-10 shadow-lg"></div>
+
+          <div className="w-full max-w-4xl flex flex-col items-center">
+            {/* Logo & En-tête */}
+            <div className="w-20 h-24 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/20 transition-transform hover:scale-105">
+              <i className="fas fa-graduation-cap text-sky-400 text-4xl"></i>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 text-center drop-shadow-md tracking-tight">OPTIMA Academy</h1>
+            <p className="text-slate-400 text-center mb-12 max-w-xl text-base leading-relaxed">
+              Le centre d'apprentissage unifié d'OPTIMA. Connectez-vous une seule fois pour débloquer l'ensemble des modules de formation.
+            </p>
+
+            {!userSession ? (
+              <div className="bg-slate-800/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl border border-slate-700 w-full max-w-md animate-fade-in">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center">
+                  <i className="fas fa-id-badge text-sky-400 mr-3"></i> Identification
+                </h3>
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  Entrez votre adresse e-mail professionnelle pour charger et synchroniser votre progression (XP).
+                </p>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="relative">
+                    <i className="fas fa-envelope absolute left-4 top-4 text-slate-500"></i>
+                    <input 
+                      type="email" 
+                      placeholder="prenom.nom@airliquide.com" 
+                      value={emailInput} 
+                      onChange={(e) => setEmailInput(e.target.value)} 
+                      required 
+                      className="w-full pl-12 pr-4 py-3.5 border border-slate-700 rounded-2xl text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-950 transition-all bg-slate-900 text-white font-medium" 
+                    />
+                  </div>
+                  <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3.5 rounded-2xl shadow-lg hover:shadow-sky-500/20 transition-all text-sm flex justify-center items-center">
+                    Accéder aux formations <i className="fas fa-arrow-right ml-2"></i>
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="w-full animate-fade-in space-y-10">
+                {/* Bandeau de session */}
+                <div className="bg-slate-800/60 backdrop-blur-md text-white px-6 py-4 rounded-2xl flex justify-between items-center max-w-2xl mx-auto shadow-xl border border-slate-700/50">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center font-bold text-lg border border-sky-400/20 mr-4">
+                      {userSession.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-sky-400 tracking-widest">Compte actif</span>
+                      <p className="font-bold text-sm text-slate-100">{userSession.email}</p>
+                    </div>
+                  </div>
+                  <button onClick={handleLogout} className="text-xs font-bold text-slate-400 hover:text-red-400 bg-slate-900/40 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/20 px-4 py-2.5 rounded-xl transition-all flex items-center">
+                    <i className="fas fa-sign-out-alt mr-2"></i> Déconnexion
+                  </button>
+                </div>
+
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-slate-200 mb-8">Sélectionnez le parcours à étudier :</h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    {/* Carte Formation Manager */}
+                    <button 
+                      onClick={() => navigateToPage('Formation_Manager')} 
+                      className="bg-slate-800/50 hover:bg-slate-800/80 rounded-3xl p-8 shadow-xl hover:shadow-2xl border-2 border-slate-700/50 hover:border-sky-500 transition-all hover:-translate-y-2 group text-left flex flex-col h-full relative overflow-hidden focus:outline-none w-full"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-bl-[120px] transition-transform group-hover:scale-110"></div>
+                      <div className="w-16 h-16 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center text-3xl shadow-inner mb-6 group-hover:bg-sky-500 group-hover:text-white transition-all">
+                        <i className="fas fa-users-cog"></i>
+                      </div>
+                      <h3 className="text-2xl font-extrabold text-slate-100 mb-3">Manager S&OP</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed flex-1">
+                        Maîtrisez la gestion de la capacité de votre département. Apprenez à créer et valider vos ressources, arbitrer les prêts et transferts, et affecter la charge de travail demandée par les projets (R1/R2/R3).
+                      </p>
+                      <div className="mt-6 flex items-center text-sky-400 font-bold text-sm bg-sky-950/40 border border-sky-800/20 px-4 py-2 rounded-xl group-hover:bg-sky-500 group-hover:text-white group-hover:border-sky-500 transition-all">
+                        Démarrer l'apprentissage <i className="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                      </div>
+                    </button>
+
+                    {/* Carte Formation PM & Sales */}
+                    <button 
+                      onClick={() => navigateToPage('Formation_PM')} 
+                      className="bg-slate-800/50 hover:bg-slate-800/80 rounded-3xl p-8 shadow-xl hover:shadow-2xl border-2 border-slate-700/50 hover:border-emerald-500 transition-all hover:-translate-y-2 group text-left flex flex-col h-full relative overflow-hidden focus:outline-none w-full"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[120px] transition-transform group-hover:scale-110"></div>
+                      <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl shadow-inner mb-6 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                        <i className="fas fa-project-diagram"></i>
+                      </div>
+                      <h3 className="text-2xl font-extrabold text-slate-100 mb-3">Project Manager & Sales</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed flex-1">
+                        Découvrez le cycle d'estimation capacitaire d'un projet. Remplissez, importez et validez ("Ingest & Validate") vos plans de charge (ProjectLoad) dans l'application pour alimenter la courbe de charge rouge.
+                      </p>
+                      <div className="mt-6 flex items-center text-emerald-400 font-bold text-sm bg-emerald-950/40 border border-emerald-800/20 px-4 py-2 rounded-xl group-hover:bg-emerald-50 group-hover:text-white group-hover:border-emerald-500 transition-all">
+                        Démarrer l'apprentissage <i className="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <footer className="w-full text-center py-6 text-slate-600 text-xs border-t border-slate-800/40 mt-12 bg-slate-950/20">
+             OPTIMA Academy v2.6.0 &copy; 2026 - Conçu pour les équipes opérationnelles S&OP
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PortalApp />);
+  </script>
+</body>
+</html>
